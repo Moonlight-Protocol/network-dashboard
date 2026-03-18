@@ -12,7 +12,7 @@ window.__DASHBOARD_CONFIG__ = {
           assetCode: "XLM"
         }
       ],
-      jurisdictions: ["AR"],
+      jurisdictions: ["AR", "BR", "FR", "UY"],
       website: "https://moonlightprotocol.com"
     }
   ]

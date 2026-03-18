@@ -5,7 +5,7 @@ import { renderNav } from "../components/nav.ts";
 import { COUNCILS } from "../lib/config.ts";
 import { getChannelSupply, getContractEvents } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, formatAmount, timeAgo } from "../lib/dom.ts";
-import { getCountryName } from "../lib/geo.ts";
+import { getCountryName } from "../lib/world-map.ts";
 import { onCleanup } from "../lib/router.ts";
 import type { CouncilConfig } from "../lib/config.ts";
 import type { ContractEvent } from "../lib/stellar.ts";

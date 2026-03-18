@@ -6,7 +6,7 @@ import { COUNCILS } from "../lib/config.ts";
 import { getChannelSupply } from "../lib/stellar.ts";
 import { getContractEvents } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, formatAmount } from "../lib/dom.ts";
-import { getCountryName } from "../lib/geo.ts";
+import { getCountryName } from "../lib/world-map.ts";
 import { onCleanup } from "../lib/router.ts";
 
 interface CouncilState {
