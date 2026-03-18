@@ -3,7 +3,7 @@
  */
 import { renderNav } from "../components/nav.ts";
 import { COUNCILS } from "../lib/config.ts";
-import { getChannelSupply, getContractEvents, getProviderCount, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
+import { getChannelSupply, getContractEvents, getProviderCount, countProvidersFromEvents, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, formatAmount, timeAgo, sanitizeUrl } from "../lib/dom.ts";
 import { getCountryName } from "../lib/world-map.ts";
 import { onCleanup } from "../lib/router.ts";
@@ -103,15 +103,13 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, ctx:
     !["ProviderAdded", "ProviderRemoved", "ContractInitialized"].includes(e.type)
   );
 
-  // Extract provider addresses from events
-  const providerAddrs: string[] = [];
-  for (const e of allEvents) {
-    if (e.type === "ProviderAdded" && e.value) providerAddrs.push(String(e.value));
-  }
-  const removedAddrs = new Set(
-    allEvents.filter(e => e.type === "ProviderRemoved" && e.value).map(e => String(e.value)),
+  // Derive active providers using chronological event processing
+  const authEvents = allEvents.filter(e =>
+    e.contractId === council.channelAuthId &&
+    (e.type === "ProviderAdded" || e.type === "ProviderRemoved")
   );
-  const activeProviders = [...new Set(providerAddrs)].filter(a => !removedAddrs.has(a));
+  authEvents.sort((a, b) => a.ledger - b.ledger); // chronological order
+  const activeProviders = countProvidersFromEvents(authEvents);
 
   const hasErrors = queryErrors.length > 0;
   const providerNote = providerResult.fromEvents

@@ -109,9 +109,7 @@ function renderCouncilTable(main: HTMLElement, states: CouncilState[]): void {
     sum + s.channels.reduce((cs, c) => cs + c.supply, 0n), 0n);
 
   const hasErrors = queryErrors.length > 0;
-  const providerNote = states.some(s => s.providerFromEvents)
-    ? ' <span class="text-muted" title="Based on recent on-chain events. Providers registered before the RPC retention window may not appear.">(recent)</span>'
-    : "";
+  const showProviderNote = states.some(s => s.providerFromEvents);
 
   content.innerHTML = `
     ${hasErrors ? `<div class="error-banner">Some data may be incomplete — network queries failed. <span class="text-muted">(${queryErrors.length} error${queryErrors.length !== 1 ? "s" : ""})</span></div>` : ""}
@@ -127,7 +125,7 @@ function renderCouncilTable(main: HTMLElement, states: CouncilState[]): void {
       </div>
       <div class="stat-card">
         <span class="stat-value">${totalProviders}</span>
-        <span class="stat-label">Providers${providerNote}</span>
+        <span class="stat-label">Providers${showProviderNote ? " (recent)" : ""}</span>
       </div>
       <div class="stat-card">
         <span class="stat-value">${formatAmount(totalSupply)}</span>

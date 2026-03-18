@@ -38,7 +38,12 @@ function addSecurityHeaders(response: Response): Response {
 }
 
 function safePath(pathname: string): string | null {
-  const decoded = decodeURIComponent(pathname);
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
   const resolved = resolve(PUBLIC_ROOT, "." + normalize("/" + decoded));
   if (!resolved.startsWith(PUBLIC_ROOT)) return null;
   return resolved;

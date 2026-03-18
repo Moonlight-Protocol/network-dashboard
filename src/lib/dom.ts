@@ -31,9 +31,13 @@ export function truncateAddress(addr: string): string {
  */
 export function formatAmount(stroops: bigint | number | string): string {
   let bi: bigint;
-  try {
-    bi = typeof stroops === "bigint" ? stroops : BigInt(stroops || 0);
-  } catch {
+  if (typeof stroops === "bigint") {
+    bi = stroops;
+  } else if (typeof stroops === "number" && isFinite(stroops)) {
+    bi = BigInt(Math.trunc(stroops));
+  } else if (typeof stroops === "string") {
+    try { bi = BigInt(stroops || "0"); } catch { bi = 0n; }
+  } else {
     bi = 0n;
   }
   const whole = bi / 10_000_000n;

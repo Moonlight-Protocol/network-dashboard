@@ -213,28 +213,38 @@ export async function getContractEvents(
 }
 
 /**
- * Query on-chain provider count via contract simulation.
- * Falls back to event-based counting if the contract doesn't expose a list method.
+ * Count providers from recent on-chain events.
+ *
+ * Limitation: RPC event retention is ~24h. Providers added before the
+ * retention window won't appear. Count reflects recent event window only.
  */
 export async function getProviderCount(channelAuthId: string): Promise<{ count: number; fromEvents: boolean }> {
-  // Try event-based discovery with a note about limitations
   try {
     const events = await getContractEvents(channelAuthId);
-    const added = new Set<string>();
-    const removed = new Set<string>();
-
-    for (const e of events) {
-      const addr = e.value != null ? String(e.value) : null;
-      if (e.type === "ProviderAdded" && addr) added.add(addr);
-      if (e.type === "ProviderRemoved" && addr) removed.add(addr);
-    }
-
-    for (const r of removed) added.delete(r);
-    return { count: added.size, fromEvents: true };
+    const result = countProvidersFromEvents(events);
+    return { count: result.length, fromEvents: true };
   } catch (err) {
     recordError(`getProviderCount(${channelAuthId.slice(0, 8)})`, err);
     return { count: 0, fromEvents: true };
   }
+}
+
+/**
+ * Derive active provider list from a chronologically-ordered event stream.
+ * Processes events in order so add→remove→re-add correctly shows as active.
+ * Exported for testability.
+ */
+export function countProvidersFromEvents(events: ContractEvent[]): string[] {
+  const state = new Map<string, boolean>(); // address → currently active
+
+  for (const e of events) {
+    const addr = e.value != null ? String(e.value) : null;
+    if (!addr) continue;
+    if (e.type === "ProviderAdded") state.set(addr, true);
+    if (e.type === "ProviderRemoved") state.set(addr, false);
+  }
+
+  return [...state.entries()].filter(([, active]) => active).map(([addr]) => addr);
 }
 
 function safeScValToNative(s: StellarSdkSubset, val: unknown): unknown {

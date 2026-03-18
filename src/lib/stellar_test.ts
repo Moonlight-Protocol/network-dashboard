@@ -1,69 +1,54 @@
 import { assertEquals } from "@std/assert";
-import { queryErrors } from "./stellar.ts";
+import { queryErrors, clearQueryErrors, countProvidersFromEvents } from "./stellar.ts";
+import type { ContractEvent } from "./stellar.ts";
+
+function mockEvent(type: string, value: string | null, ledger = 1): ContractEvent {
+  return { id: "e1", type, contractId: "C...", ledger, timestamp: "", topic: [], value };
+}
 
 Deno.test("queryErrors starts empty", () => {
-  // queryErrors is a module-level array; in a fresh import it should be empty
   assertEquals(Array.isArray(queryErrors), true);
 });
 
-// Test the event type parsing logic (extracted for testability)
-function parseEventType(topic: string[]): string {
-  if (!topic || topic.length === 0) return "unknown";
-  const first = topic[0];
-  if (typeof first === "string") return first;
-  return "unknown";
-}
-
-Deno.test("parseEventType extracts string topic", () => {
-  assertEquals(parseEventType(["ProviderAdded"]), "ProviderAdded");
-  assertEquals(parseEventType(["ProviderRemoved"]), "ProviderRemoved");
-  assertEquals(parseEventType(["ContractInitialized"]), "ContractInitialized");
+Deno.test("clearQueryErrors empties the array", () => {
+  queryErrors.push({ source: "test", message: "err", time: 0 });
+  clearQueryErrors();
+  assertEquals(queryErrors.length, 0);
 });
 
-Deno.test("parseEventType returns unknown for empty topics", () => {
-  assertEquals(parseEventType([]), "unknown");
-});
-
-// Test provider count logic (extracted for testability)
-function countProviders(events: { type: string; value: string | null }[]): { count: number; addresses: string[] } {
-  const added = new Set<string>();
-  const removed = new Set<string>();
-
-  for (const e of events) {
-    if (e.type === "ProviderAdded" && e.value) added.add(e.value);
-    if (e.type === "ProviderRemoved" && e.value) removed.add(e.value);
-  }
-
-  for (const r of removed) added.delete(r);
-  return { count: added.size, addresses: [...added] };
-}
-
-Deno.test("countProviders tracks adds and removes", () => {
+Deno.test("countProvidersFromEvents tracks adds and removes", () => {
   const events = [
-    { type: "ProviderAdded", value: "GAAA" },
-    { type: "ProviderAdded", value: "GBBB" },
-    { type: "ProviderRemoved", value: "GAAA" },
+    mockEvent("ProviderAdded", "GAAA", 1),
+    mockEvent("ProviderAdded", "GBBB", 2),
+    mockEvent("ProviderRemoved", "GAAA", 3),
   ];
-  const result = countProviders(events);
-  assertEquals(result.count, 1);
-  assertEquals(result.addresses, ["GBBB"]);
+  const result = countProvidersFromEvents(events);
+  assertEquals(result, ["GBBB"]);
 });
 
-Deno.test("countProviders deduplicates multiple adds", () => {
+Deno.test("countProvidersFromEvents handles add-remove-re-add", () => {
   const events = [
-    { type: "ProviderAdded", value: "GAAA" },
-    { type: "ProviderAdded", value: "GAAA" },
+    mockEvent("ProviderAdded", "GAAA", 1),
+    mockEvent("ProviderRemoved", "GAAA", 2),
+    mockEvent("ProviderAdded", "GAAA", 3),
   ];
-  assertEquals(countProviders(events).count, 1);
+  const result = countProvidersFromEvents(events);
+  assertEquals(result, ["GAAA"]);
 });
 
-Deno.test("countProviders handles empty events", () => {
-  assertEquals(countProviders([]).count, 0);
-});
-
-Deno.test("countProviders ignores null values", () => {
+Deno.test("countProvidersFromEvents deduplicates multiple adds", () => {
   const events = [
-    { type: "ProviderAdded", value: null },
+    mockEvent("ProviderAdded", "GAAA", 1),
+    mockEvent("ProviderAdded", "GAAA", 2),
   ];
-  assertEquals(countProviders(events).count, 0);
+  assertEquals(countProvidersFromEvents(events).length, 1);
+});
+
+Deno.test("countProvidersFromEvents handles empty events", () => {
+  assertEquals(countProvidersFromEvents([]).length, 0);
+});
+
+Deno.test("countProvidersFromEvents ignores null values", () => {
+  const events = [mockEvent("ProviderAdded", null, 1)];
+  assertEquals(countProvidersFromEvents(events).length, 0);
 });
