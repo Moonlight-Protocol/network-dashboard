@@ -38,7 +38,7 @@ export async function councilsView(): Promise<HTMLElement> {
   const ctx = { cancelled: false };
   onCleanup(() => { ctx.cancelled = true; });
 
-  loadCouncilData(main, ctx);
+  loadCouncilData(main, ctx).catch(() => {});
 
   return el;
 }

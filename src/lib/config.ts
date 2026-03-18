@@ -20,7 +20,6 @@ interface DashboardConfig {
   environment?: string;
   stellarNetwork?: "testnet" | "mainnet" | "standalone";
   rpcUrl?: string;
-  horizonUrl?: string;
   councils?: CouncilConfig[];
 }
 
@@ -46,7 +45,6 @@ export const ENVIRONMENT = c.environment ?? "development";
 export const IS_PRODUCTION = ENVIRONMENT === "production";
 export const STELLAR_NETWORK = c.stellarNetwork ?? "testnet";
 export const RPC_URL = c.rpcUrl ?? "https://soroban-testnet.stellar.org";
-export const HORIZON_URL = c.horizonUrl ?? "https://horizon-testnet.stellar.org";
 export const COUNCILS: CouncilConfig[] = c.councils ?? [];
 
 export function getNetworkPassphrase(): string {

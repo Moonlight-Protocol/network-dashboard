@@ -51,7 +51,7 @@ export async function councilDetailView(params?: Record<string, string>): Promis
   const ctx = { cancelled: false };
   onCleanup(() => { ctx.cancelled = true; });
 
-  loadCouncilDetail(main, council, ctx);
+  loadCouncilDetail(main, council, ctx).catch(() => {});
 
   return el;
 }

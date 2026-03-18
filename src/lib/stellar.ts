@@ -4,23 +4,43 @@
  */
 import { RPC_URL, getNetworkPassphrase } from "./config.ts";
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 /** Errors encountered during the current view's queries. Cleared on each navigation. */
 export const queryErrors: { source: string; message: string; time: number }[] = [];
+
+/** Generation counter to scope errors to the current view load. */
+let queryGeneration = 0;
 
 /** Clear accumulated query errors. Call at the start of each view load. */
 export function clearQueryErrors(): void {
   queryErrors.length = 0;
+  queryGeneration++;
 }
 
-function recordError(source: string, err: unknown): void {
+function recordError(source: string, err: unknown, generation: number): void {
+  // Discard errors from a previous view's in-flight requests
+  if (generation !== queryGeneration) return;
   const message = err instanceof Error ? err.message : String(err);
   queryErrors.push({ source, message, time: Date.now() });
-  // Keep only last 50 errors
   if (queryErrors.length > 50) queryErrors.shift();
   console.warn(`[stellar:${source}]`, message);
 }
 
+/** Wrap a promise with a timeout. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
 // --- Stellar SDK types (subset used by this module) ---
+// Note: hand-written to match @stellar/stellar-sdk@14.2.0.
+// If the SDK API changes, these will need updating.
 
 interface StellarSdkSubset {
   Contract: new (id: string) => StellarContract;
@@ -36,9 +56,8 @@ interface StellarContract {
   call(method: string, ...args: unknown[]): unknown;
 }
 
-interface StellarAccount {
-  sequenceNumber(): string;
-}
+// StellarAccount — used as opaque type passed to TransactionBuilder.
+type StellarAccount = Record<string, unknown>;
 
 interface TxBuilder {
   addOperation(op: unknown): TxBuilder;
@@ -89,7 +108,11 @@ const DUMMY_PK = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
 
 async function sdk(): Promise<StellarSdkSubset> {
   if (!stellarSdk) {
-    stellarSdk = await import("stellar-sdk") as unknown as StellarSdkSubset;
+    // Runtime cast: we trust the SDK shape matches our interface for the
+    // methods we use. A version mismatch will surface as a runtime error
+    // on the first call, not silently.
+    const mod = await import("stellar-sdk");
+    stellarSdk = mod as unknown as StellarSdkSubset;
   }
   return stellarSdk;
 }
@@ -105,33 +128,23 @@ async function getRpcServer(): Promise<RpcServer> {
  * Query a Privacy Channel contract for its supply.
  */
 export async function getChannelSupply(contractId: string): Promise<bigint> {
+  const gen = queryGeneration;
   try {
     const s = await sdk();
     const server = await getRpcServer();
     const contract = new s.Contract(contractId);
-    const result = await simulateReadCall(server, s, contract, "supply");
+    const result = await withTimeout(
+      simulateReadCall(server, s, contract, "supply"),
+      REQUEST_TIMEOUT_MS,
+      "getChannelSupply",
+    );
     if (typeof result === "bigint") return result;
     if (typeof result === "number" && isFinite(result)) return BigInt(Math.trunc(result));
     if (typeof result === "string" && /^-?\d+$/.test(result)) return BigInt(result);
     throw new Error(`Unexpected supply type: ${typeof result}`);
   } catch (err) {
-    recordError(`getChannelSupply(${contractId.slice(0, 8)})`, err);
+    recordError(`getChannelSupply(${contractId.slice(0, 8)})`, err, gen);
     return 0n;
-  }
-}
-
-/**
- * Query a Privacy Channel contract for its asset address.
- */
-export async function getChannelAsset(contractId: string): Promise<string> {
-  try {
-    const s = await sdk();
-    const server = await getRpcServer();
-    const contract = new s.Contract(contractId);
-    return String(await simulateReadCall(server, s, contract, "asset"));
-  } catch (err) {
-    recordError(`getChannelAsset(${contractId.slice(0, 8)})`, err);
-    return "unknown";
   }
 }
 
@@ -179,22 +192,31 @@ export async function getContractEvents(
   startLedger?: number,
   limit = 100,
 ): Promise<ContractEvent[]> {
+  const gen = queryGeneration;
   try {
     const server = await getRpcServer();
     const s = await sdk();
 
-    const latestLedger = await server.getLatestLedger();
+    const latestLedger = await withTimeout(
+      server.getLatestLedger(),
+      REQUEST_TIMEOUT_MS,
+      "getLatestLedger",
+    );
     const seq = latestLedger?.sequence;
     if (typeof seq !== "number" || !isFinite(seq) || seq <= 0) {
       throw new Error("Invalid latest ledger sequence");
     }
     const start = startLedger ?? Math.max(1, seq - 17280);
 
-    const response = await server.getEvents({
-      startLedger: start,
-      filters: [{ type: "contract", contractIds: [contractId] }],
-      limit,
-    });
+    const response = await withTimeout(
+      server.getEvents({
+        startLedger: start,
+        filters: [{ type: "contract", contractIds: [contractId] }],
+        limit,
+      }),
+      REQUEST_TIMEOUT_MS,
+      "getEvents",
+    );
 
     return (response.events ?? []).map((e: RawEvent) => ({
       id: e.id,
@@ -206,7 +228,7 @@ export async function getContractEvents(
       value: e.value ? safeScValToNative(s, e.value) : null,
     }));
   } catch (err) {
-    recordError(`getContractEvents(${contractId.slice(0, 8)})`, err);
+    recordError(`getContractEvents(${contractId.slice(0, 8)})`, err, gen);
     return [];
   }
 }
@@ -232,7 +254,6 @@ export function countProvidersFromEvents(events: ContractEvent[]): string[] {
 function safeScValToNative(s: StellarSdkSubset, val: unknown): unknown {
   try {
     const result = s.scValToNative(val);
-    // Avoid [object Object] for non-primitives
     if (result !== null && typeof result === "object") {
       return JSON.stringify(result);
     }

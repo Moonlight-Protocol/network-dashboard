@@ -31,7 +31,7 @@ export async function transactionsView(): Promise<HTMLElement> {
   const ctx = { cancelled: false };
   onCleanup(() => { ctx.cancelled = true; });
 
-  loadTransactions(main, ctx);
+  loadTransactions(main, ctx).catch(() => {});
 
   return el;
 }

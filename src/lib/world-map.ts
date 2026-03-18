@@ -38,7 +38,14 @@ export function sanitizeSvgPath(d: string): string {
  * Fetch and render world landmasses as sanitized SVG path strings.
  */
 export async function fetchWorldPaths(width: number, height: number): Promise<string[]> {
-  const res = await fetch(TOPO_URL);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  let res: Response;
+  try {
+    res = await fetch(TOPO_URL, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) throw new Error(`Failed to fetch world map data: ${res.status}`);
   const topo = await res.json() as TopoData;
 
