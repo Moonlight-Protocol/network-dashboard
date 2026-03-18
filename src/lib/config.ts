@@ -30,9 +30,12 @@ declare global {
   }
 }
 
-// Use globalThis to work in both browser and Deno test environments
-const g = globalThis as unknown as { __DASHBOARD_CONFIG__?: DashboardConfig };
-const config = g.__DASHBOARD_CONFIG__;
+// Read config from globalThis to work in both browser and Deno test environments.
+// window.__DASHBOARD_CONFIG__ is set by config.js which loads before app.js.
+const config: DashboardConfig | undefined =
+  "__DASHBOARD_CONFIG__" in globalThis
+    ? (globalThis as Record<string, unknown>).__DASHBOARD_CONFIG__ as DashboardConfig
+    : undefined;
 if (!config && typeof document !== "undefined") {
   console.warn("Dashboard config not found — using testnet defaults. Ensure config.js loads before app.js.");
 }

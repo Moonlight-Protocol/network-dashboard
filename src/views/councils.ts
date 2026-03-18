@@ -3,7 +3,7 @@
  */
 import { renderNav } from "../components/nav.ts";
 import { COUNCILS } from "../lib/config.ts";
-import { getChannelSupply, getProviderCount, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
+import { getChannelSupply, getContractEvents, countProvidersFromEvents, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, formatAmount } from "../lib/dom.ts";
 import { getCountryName } from "../lib/world-map.ts";
 import { onCleanup } from "../lib/router.ts";
@@ -19,7 +19,6 @@ interface CouncilState {
     supply: bigint;
   }[];
   providerCount: number;
-  providerFromEvents: boolean;
   loading: boolean;
 }
 
@@ -53,7 +52,6 @@ async function loadCouncilData(main: HTMLElement, ctx: { cancelled: boolean }): 
     website: council.website,
     channels: [],
     providerCount: 0,
-    providerFromEvents: false,
     loading: true,
   }));
 
@@ -77,9 +75,8 @@ async function loadCouncilData(main: HTMLElement, ctx: { cancelled: boolean }): 
     }
 
     promises.push(
-      getProviderCount(state.channelAuthId).then(result => {
-        state.providerCount = result.count;
-        state.providerFromEvents = result.fromEvents;
+      getContractEvents(state.channelAuthId).then(events => {
+        state.providerCount = countProvidersFromEvents(events).length;
       }),
     );
   }
@@ -109,7 +106,6 @@ function renderCouncilTable(main: HTMLElement, states: CouncilState[]): void {
     sum + s.channels.reduce((cs, c) => cs + c.supply, 0n), 0n);
 
   const hasErrors = queryErrors.length > 0;
-  const showProviderNote = states.some(s => s.providerFromEvents);
 
   content.innerHTML = `
     ${hasErrors ? `<div class="error-banner">Some data may be incomplete — network queries failed. <span class="text-muted">(${queryErrors.length} error${queryErrors.length !== 1 ? "s" : ""})</span></div>` : ""}
@@ -125,7 +121,7 @@ function renderCouncilTable(main: HTMLElement, states: CouncilState[]): void {
       </div>
       <div class="stat-card">
         <span class="stat-value">${totalProviders}</span>
-        <span class="stat-label">Providers${showProviderNote ? " (recent)" : ""}</span>
+        <span class="stat-label">Providers (recent)</span>
       </div>
       <div class="stat-card">
         <span class="stat-value">${formatAmount(totalSupply)}</span>

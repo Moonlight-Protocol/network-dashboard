@@ -26,7 +26,6 @@ interface StellarSdkSubset {
   Contract: new (id: string) => StellarContract;
   Account: new (publicKey: string, sequence: string) => StellarAccount;
   TransactionBuilder: new (account: StellarAccount, opts: { fee: string; networkPassphrase: string }) => TxBuilder;
-  Keypair: { random(): { publicKey(): string } };
   scValToNative(val: unknown): unknown;
   rpc: {
     Server: new (url: string) => RpcServer;
@@ -173,7 +172,7 @@ async function simulateReadCall(
  *
  * Note: RPC event retention is limited (~24h of ledgers). Events older than
  * the retention window are not available. Provider counts derived from events
- * may be incomplete — use getProviderCount() for on-chain state queries.
+ * may be incomplete.
  */
 export async function getContractEvents(
   contractId: string,
@@ -209,23 +208,6 @@ export async function getContractEvents(
   } catch (err) {
     recordError(`getContractEvents(${contractId.slice(0, 8)})`, err);
     return [];
-  }
-}
-
-/**
- * Count providers from recent on-chain events.
- *
- * Limitation: RPC event retention is ~24h. Providers added before the
- * retention window won't appear. Count reflects recent event window only.
- */
-export async function getProviderCount(channelAuthId: string): Promise<{ count: number; fromEvents: boolean }> {
-  try {
-    const events = await getContractEvents(channelAuthId);
-    const result = countProvidersFromEvents(events);
-    return { count: result.length, fromEvents: true };
-  } catch (err) {
-    recordError(`getProviderCount(${channelAuthId.slice(0, 8)})`, err);
-    return { count: 0, fromEvents: true };
   }
 }
 

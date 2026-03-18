@@ -3,7 +3,7 @@
  */
 import { renderNav } from "../components/nav.ts";
 import { COUNCILS } from "../lib/config.ts";
-import { getChannelSupply, getContractEvents, getProviderCount, countProvidersFromEvents, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
+import { getChannelSupply, getContractEvents, countProvidersFromEvents, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, formatAmount, timeAgo, sanitizeUrl } from "../lib/dom.ts";
 import { getCountryName } from "../lib/world-map.ts";
 import { onCleanup } from "../lib/router.ts";
@@ -71,11 +71,6 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, ctx:
     );
   }
 
-  let providerResult = { count: 0, fromEvents: true };
-  promises.push(
-    getProviderCount(council.channelAuthId).then(r => { providerResult = r; }),
-  );
-
   promises.push(
     getContractEvents(council.channelAuthId, undefined, 100).then(events => {
       allEvents.push(...events);
@@ -112,9 +107,6 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, ctx:
   const activeProviders = countProvidersFromEvents(authEvents);
 
   const hasErrors = queryErrors.length > 0;
-  const providerNote = providerResult.fromEvents
-    ? ' <span class="text-muted" title="Based on recent on-chain events">(recent)</span>'
-    : "";
 
   content.innerHTML = `
     ${hasErrors ? `<div class="error-banner">Some data may be incomplete — network queries failed.</div>` : ""}
@@ -125,8 +117,8 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, ctx:
         <span class="stat-label">Channels</span>
       </div>
       <div class="stat-card">
-        <span class="stat-value">${providerResult.count}</span>
-        <span class="stat-label">Providers${providerNote}</span>
+        <span class="stat-value">${activeProviders.length}</span>
+        <span class="stat-label">Providers (recent)</span>
       </div>
       <div class="stat-card">
         <span class="stat-value">${formatAmount(totalSupply)}</span>
