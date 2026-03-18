@@ -3,7 +3,7 @@
  */
 import { renderNav } from "../components/nav.ts";
 import { COUNCILS } from "../lib/config.ts";
-import { getContractEvents } from "../lib/stellar.ts";
+import { getContractEvents, queryErrors } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, timeAgo } from "../lib/dom.ts";
 import { onCleanup } from "../lib/router.ts";
 import type { ContractEvent } from "../lib/stellar.ts";
@@ -28,36 +28,32 @@ export async function transactionsView(): Promise<HTMLElement> {
   `;
   el.appendChild(main);
 
-  let cancelled = false;
-  onCleanup(() => { cancelled = true; });
+  const ctx = { cancelled: false };
+  onCleanup(() => { ctx.cancelled = true; });
 
-  loadTransactions(main, cancelled);
+  loadTransactions(main, ctx);
 
   return el;
 }
 
-async function loadTransactions(main: HTMLElement, cancelled: boolean): Promise<void> {
+async function loadTransactions(main: HTMLElement, ctx: { cancelled: boolean }): Promise<void> {
   const feed: FeedEntry[] = [];
-
-  // Fetch events from all channels across all councils
   const promises: Promise<void>[] = [];
 
   for (const council of COUNCILS) {
-    // Channel Auth events (ProviderAdded, ProviderRemoved)
     promises.push(
       getContractEvents(council.channelAuthId, undefined, 50).then(events => {
         for (const event of events) {
           feed.push({
             event,
             councilName: council.name,
-            channelAsset: "—",
+            channelAsset: "\u2014",
             channelId: council.channelAuthId,
           });
         }
       }),
     );
 
-    // Privacy Channel events (transact)
     for (const ch of council.channels) {
       promises.push(
         getContractEvents(ch.privacyChannelId, undefined, 50).then(events => {
@@ -76,9 +72,8 @@ async function loadTransactions(main: HTMLElement, cancelled: boolean): Promise<
 
   await Promise.allSettled(promises);
 
-  if (cancelled) return;
+  if (ctx.cancelled) return;
 
-  // Sort by ledger descending
   feed.sort((a, b) => b.event.ledger - a.event.ledger);
 
   renderFeed(main, feed);
@@ -107,16 +102,18 @@ function renderFeed(main: HTMLElement, feed: FeedEntry[]): void {
   if (!content) return;
 
   if (feed.length === 0) {
+    const hasErrors = queryErrors.length > 0;
     content.innerHTML = `
       <div class="empty-state">
         <p>No recent transactions found.</p>
-        <p class="text-muted">Transactions will appear here as channels process bundles.</p>
+        ${hasErrors
+          ? `<p class="error-text">Network queries encountered errors. The RPC may be unreachable.</p>`
+          : `<p class="text-muted">Transactions will appear here as channels process bundles.</p>`}
       </div>
     `;
     return;
   }
 
-  // Stats
   const txCount = feed.filter(f => !["ProviderAdded", "ProviderRemoved", "ContractInitialized"].includes(f.event.type)).length;
   const providerEvents = feed.filter(f => f.event.type === "ProviderAdded" || f.event.type === "ProviderRemoved").length;
 
@@ -146,7 +143,7 @@ function renderFeed(main: HTMLElement, feed: FeedEntry[]): void {
           </div>
           <div class="feed-item-details">
             <span class="text-muted">Council:</span> ${escapeHtml(entry.councilName)}
-            ${entry.channelAsset !== "—" ? `<span class="text-muted" style="margin-left:1rem">Asset:</span> ${escapeHtml(entry.channelAsset)}` : ""}
+            ${entry.channelAsset !== "\u2014" ? `<span class="text-muted" style="margin-left:1rem">Asset:</span> ${escapeHtml(entry.channelAsset)}` : ""}
           </div>
           <div class="feed-item-id mono">${truncateAddress(entry.channelId)}</div>
         </div>

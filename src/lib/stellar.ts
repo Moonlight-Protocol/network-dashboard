@@ -2,37 +2,113 @@
  * Read-only Stellar/Soroban helpers for querying contract state.
  * No wallet, no signing — purely read operations.
  */
-import { RPC_URL, HORIZON_URL } from "./config.ts";
+import { RPC_URL, getNetworkPassphrase } from "./config.ts";
 
-// deno-lint-ignore no-explicit-any
-let StellarSdk: any = null;
+/** Errors encountered during queries, exposed for UI error reporting. */
+export const queryErrors: { source: string; message: string; time: number }[] = [];
 
-// deno-lint-ignore no-explicit-any
-async function sdk(): Promise<any> {
-  if (!StellarSdk) {
-    StellarSdk = await import("stellar-sdk");
+function recordError(source: string, err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err);
+  queryErrors.push({ source, message, time: Date.now() });
+  // Keep only last 50 errors
+  if (queryErrors.length > 50) queryErrors.shift();
+  console.warn(`[stellar:${source}]`, message);
+}
+
+// --- Stellar SDK types (subset used by this module) ---
+
+interface StellarSdkSubset {
+  Contract: new (id: string) => StellarContract;
+  Account: new (publicKey: string, sequence: string) => StellarAccount;
+  TransactionBuilder: new (account: StellarAccount, opts: { fee: string; networkPassphrase: string }) => TxBuilder;
+  Keypair: { random(): { publicKey(): string } };
+  scValToNative(val: unknown): unknown;
+  rpc: {
+    Server: new (url: string) => RpcServer;
+  };
+}
+
+interface StellarContract {
+  call(method: string, ...args: unknown[]): unknown;
+}
+
+interface StellarAccount {
+  sequenceNumber(): string;
+}
+
+interface TxBuilder {
+  addOperation(op: unknown): TxBuilder;
+  setTimeout(seconds: number): TxBuilder;
+  build(): StellarTransaction;
+}
+
+interface StellarTransaction {
+  toXDR(): string;
+}
+
+interface SimulationResult {
+  error?: string;
+  result?: { retval?: unknown };
+}
+
+interface RpcServer {
+  simulateTransaction(tx: StellarTransaction): Promise<SimulationResult>;
+  getLatestLedger(): Promise<{ sequence: number }>;
+  getEvents(opts: EventsRequest): Promise<EventsResponse>;
+}
+
+interface EventsRequest {
+  startLedger: number;
+  filters: { type: string; contractIds: string[] }[];
+  limit: number;
+}
+
+interface EventsResponse {
+  events?: RawEvent[];
+}
+
+interface RawEvent {
+  id: string;
+  contractId?: string;
+  ledger: number;
+  createdAt: string;
+  topic?: unknown[];
+  value?: unknown;
+}
+
+// --- SDK lazy-loading ---
+
+let stellarSdk: StellarSdkSubset | null = null;
+
+// Constant dummy public key for read-only simulations (avoids generating random keys).
+const DUMMY_PK = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
+
+async function sdk(): Promise<StellarSdkSubset> {
+  if (!stellarSdk) {
+    stellarSdk = await import("stellar-sdk") as unknown as StellarSdkSubset;
   }
-  return StellarSdk;
+  return stellarSdk;
 }
 
-// deno-lint-ignore no-explicit-any
-async function getRpcServer(): Promise<any> {
-  const stellar = await sdk();
-  return new stellar.rpc.Server(RPC_URL);
+async function getRpcServer(): Promise<RpcServer> {
+  const s = await sdk();
+  return new s.rpc.Server(RPC_URL);
 }
+
+// --- Public API ---
 
 /**
  * Query a Privacy Channel contract for its supply.
  */
 export async function getChannelSupply(contractId: string): Promise<bigint> {
   try {
-    const stellar = await sdk();
+    const s = await sdk();
     const server = await getRpcServer();
-    const contract = new stellar.Contract(contractId);
-
-    const account = await simulateReadCall(server, stellar, contract, "supply");
-    return BigInt(account);
-  } catch {
+    const contract = new s.Contract(contractId);
+    const result = await simulateReadCall(server, s, contract, "supply");
+    return BigInt(result as string | number | bigint | boolean);
+  } catch (err) {
+    recordError(`getChannelSupply(${contractId.slice(0, 8)})`, err);
     return 0n;
   }
 }
@@ -42,12 +118,12 @@ export async function getChannelSupply(contractId: string): Promise<bigint> {
  */
 export async function getChannelAsset(contractId: string): Promise<string> {
   try {
-    const stellar = await sdk();
+    const s = await sdk();
     const server = await getRpcServer();
-    const contract = new stellar.Contract(contractId);
-
-    return await simulateReadCall(server, stellar, contract, "asset");
-  } catch {
+    const contract = new s.Contract(contractId);
+    return String(await simulateReadCall(server, s, contract, "asset"));
+  } catch (err) {
+    recordError(`getChannelAsset(${contractId.slice(0, 8)})`, err);
     return "unknown";
   }
 }
@@ -55,18 +131,18 @@ export async function getChannelAsset(contractId: string): Promise<string> {
 /**
  * Simulate a read-only contract call (no signing needed).
  */
-// deno-lint-ignore no-explicit-any
-async function simulateReadCall(server: any, stellar: any, contract: any, method: string): Promise<any> {
-  // Use a dummy source account for simulation
-  const sourceKey = stellar.Keypair.random();
-  const sourcePublicKey = sourceKey.publicKey();
+async function simulateReadCall(
+  server: RpcServer,
+  s: StellarSdkSubset,
+  contract: StellarContract,
+  method: string,
+): Promise<unknown> {
+  const account = new s.Account(DUMMY_PK, "0");
+  const passphrase = getNetworkPassphrase();
 
-  // Build a dummy account for simulation
-  const account = new stellar.Account(sourcePublicKey, "0");
-
-  const tx = new stellar.TransactionBuilder(account, {
+  const tx = new s.TransactionBuilder(account, {
     fee: "100",
-    networkPassphrase: "Test SDF Network ; September 2015",
+    networkPassphrase: passphrase,
   })
     .addOperation(contract.call(method))
     .setTimeout(30)
@@ -77,78 +153,99 @@ async function simulateReadCall(server: any, stellar: any, contract: any, method
     throw new Error(`Simulation failed: ${sim.error}`);
   }
 
-  // Extract return value from simulation result
   if (sim.result?.retval) {
-    return stellar.scValToNative(sim.result.retval);
+    return s.scValToNative(sim.result.retval);
   }
 
   return null;
 }
 
 /**
- * Get contract events (ProviderAdded, ProviderRemoved, transact) from RPC.
+ * Get contract events from RPC.
+ *
+ * Note: RPC event retention is limited (~24h of ledgers). Events older than
+ * the retention window are not available. Provider counts derived from events
+ * may be incomplete — use getProviderCount() for on-chain state queries.
  */
 export async function getContractEvents(
   contractId: string,
   startLedger?: number,
   limit = 100,
 ): Promise<ContractEvent[]> {
-  const server = await getRpcServer();
-  const stellar = await sdk();
-
   try {
+    const server = await getRpcServer();
+    const s = await sdk();
+
     const latestLedger = await server.getLatestLedger();
-    const start = startLedger ?? Math.max(1, latestLedger.sequence - 17280); // ~24h of ledgers
+    const seq = latestLedger?.sequence;
+    if (typeof seq !== "number" || !isFinite(seq) || seq <= 0) {
+      throw new Error("Invalid latest ledger sequence");
+    }
+    const start = startLedger ?? Math.max(1, seq - 17280);
 
     const response = await server.getEvents({
       startLedger: start,
-      filters: [
-        {
-          type: "contract",
-          contractIds: [contractId],
-        },
-      ],
+      filters: [{ type: "contract", contractIds: [contractId] }],
       limit,
     });
 
     return (response.events ?? []).map((e: RawEvent) => ({
       id: e.id,
-      type: parseEventType(e, stellar),
+      type: parseEventType(e, s),
       contractId: e.contractId ?? contractId,
       ledger: e.ledger,
       timestamp: e.createdAt,
-      topic: e.topic?.map((t: unknown) => {
-        try { return stellar.scValToNative(t); }
-        catch { return String(t); }
-      }) ?? [],
-      value: e.value ? safeScValToNative(stellar, e.value) : null,
+      topic: e.topic?.map((t: unknown) => safeScValToNative(s, t)) ?? [],
+      value: e.value ? safeScValToNative(s, e.value) : null,
     }));
-  } catch {
+  } catch (err) {
+    recordError(`getContractEvents(${contractId.slice(0, 8)})`, err);
     return [];
   }
 }
 
-interface RawEvent {
-  id: string;
-  contractId?: string;
-  ledger: number;
-  createdAt: string;
-  topic?: unknown[];
-  value?: unknown;
-  type?: string;
+/**
+ * Query on-chain provider count via contract simulation.
+ * Falls back to event-based counting if the contract doesn't expose a list method.
+ */
+export async function getProviderCount(channelAuthId: string): Promise<{ count: number; fromEvents: boolean }> {
+  // Try event-based discovery with a note about limitations
+  try {
+    const events = await getContractEvents(channelAuthId);
+    const added = new Set<string>();
+    const removed = new Set<string>();
+
+    for (const e of events) {
+      const addr = e.value != null ? String(e.value) : null;
+      if (e.type === "ProviderAdded" && addr) added.add(addr);
+      if (e.type === "ProviderRemoved" && addr) removed.add(addr);
+    }
+
+    for (const r of removed) added.delete(r);
+    return { count: added.size, fromEvents: true };
+  } catch (err) {
+    recordError(`getProviderCount(${channelAuthId.slice(0, 8)})`, err);
+    return { count: 0, fromEvents: true };
+  }
 }
 
-// deno-lint-ignore no-explicit-any
-function safeScValToNative(stellar: any, val: unknown): unknown {
-  try { return stellar.scValToNative(val); }
-  catch { return String(val); }
+function safeScValToNative(s: StellarSdkSubset, val: unknown): unknown {
+  try {
+    const result = s.scValToNative(val);
+    // Avoid [object Object] for non-primitives
+    if (result !== null && typeof result === "object") {
+      return JSON.stringify(result);
+    }
+    return result;
+  } catch {
+    return null;
+  }
 }
 
-// deno-lint-ignore no-explicit-any
-function parseEventType(event: RawEvent, stellar: any): string {
+function parseEventType(event: RawEvent, s: StellarSdkSubset): string {
   if (!event.topic || event.topic.length === 0) return "unknown";
   try {
-    const first = stellar.scValToNative(event.topic[0]);
+    const first = s.scValToNative(event.topic[0]);
     if (typeof first === "string") return first;
     return "unknown";
   } catch {
@@ -164,93 +261,4 @@ export interface ContractEvent {
   timestamp: string;
   topic: unknown[];
   value: unknown;
-}
-
-/**
- * Get recent transactions for a contract from Horizon.
- */
-export async function getContractTransactions(
-  contractId: string,
-  limit = 20,
-): Promise<HorizonTransaction[]> {
-  try {
-    const url = `${HORIZON_URL}/accounts/${contractId}/transactions?order=desc&limit=${limit}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data._embedded?.records ?? []).map((r: HorizonTransactionRaw) => ({
-      hash: r.hash,
-      ledger: r.ledger,
-      createdAt: r.created_at,
-      sourceAccount: r.source_account,
-      operationCount: r.operation_count,
-      feeCharged: r.fee_charged,
-      successful: r.successful,
-    }));
-  } catch {
-    return [];
-  }
-}
-
-interface HorizonTransactionRaw {
-  hash: string;
-  ledger: number;
-  created_at: string;
-  source_account: string;
-  operation_count: number;
-  fee_charged: string;
-  successful: boolean;
-}
-
-export interface HorizonTransaction {
-  hash: string;
-  ledger: number;
-  createdAt: string;
-  sourceAccount: string;
-  operationCount: number;
-  feeCharged: string;
-  successful: boolean;
-}
-
-/**
- * Get recent Soroban operations for a contract from Horizon.
- */
-export async function getContractOperations(
-  contractId: string,
-  limit = 50,
-): Promise<SorobanOperation[]> {
-  try {
-    const url = `${HORIZON_URL}/accounts/${contractId}/operations?order=desc&limit=${limit}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data._embedded?.records ?? []).map((r: SorobanOperationRaw) => ({
-      id: r.id,
-      type: r.type,
-      createdAt: r.created_at,
-      sourceAccount: r.source_account,
-      transactionHash: r.transaction_hash,
-      function: r.function,
-    }));
-  } catch {
-    return [];
-  }
-}
-
-interface SorobanOperationRaw {
-  id: string;
-  type: string;
-  created_at: string;
-  source_account: string;
-  transaction_hash: string;
-  function?: string;
-}
-
-export interface SorobanOperation {
-  id: string;
-  type: string;
-  createdAt: string;
-  sourceAccount: string;
-  transactionHash: string;
-  function?: string;
 }

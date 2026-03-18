@@ -31,7 +31,7 @@ export async function mapView(): Promise<HTMLElement> {
             <span class="badge badge-active">${c.channels.length} channel${c.channels.length !== 1 ? "s" : ""}</span>
           </div>
           <div class="council-card-meta">
-            <span>${c.jurisdictions.map(j => getCountryName(j)).join(", ")}</span>
+            <span>${c.jurisdictions.map(j => escapeHtml(getCountryName(j))).join(", ")}</span>
           </div>
           <div class="council-card-id mono">${truncateAddress(c.channelAuthId)}</div>
         </a>
@@ -40,13 +40,13 @@ export async function mapView(): Promise<HTMLElement> {
   `;
   el.appendChild(main);
 
-  let cancelled = false;
-  onCleanup(() => { cancelled = true; });
+  const ctx = { cancelled: false };
+  onCleanup(() => { ctx.cancelled = true; });
 
   // Load the map async
   try {
     const paths = await fetchWorldPaths(MAP_W, MAP_H);
-    if (cancelled) return el;
+    if (ctx.cancelled) return el;
 
     const dots = buildCouncilMarkers();
     const mapContainer = main.querySelector(".map-container")!;
@@ -82,9 +82,10 @@ export async function mapView(): Promise<HTMLElement> {
       </svg>
     `;
   } catch (err) {
-    if (!cancelled) {
+    console.warn("[map] Failed to load world map:", err);
+    if (!ctx.cancelled) {
       const mapContainer = main.querySelector(".map-container")!;
-      mapContainer.innerHTML = `<div class="empty-state"><p>Failed to load map: ${escapeHtml(String(err))}</p></div>`;
+      mapContainer.innerHTML = `<div class="empty-state"><p>Failed to load map data. Please try again later.</p></div>`;
     }
   }
 

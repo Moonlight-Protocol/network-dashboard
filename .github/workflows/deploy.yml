@@ -15,15 +15,25 @@ jobs:
           deno-version: v2.x
 
       - name: Generate production config
+        env:
+          COUNCILS_JSON: ${{ secrets.COUNCILS_JSON }}
         run: |
-          cat > public/config.js << EOF
-          window.__DASHBOARD_CONFIG__ = {
-            environment: "production",
-            rpcUrl: "https://soroban-testnet.stellar.org",
-            horizonUrl: "https://horizon-testnet.stellar.org",
-            councils: ${{ secrets.COUNCILS_JSON }}
-          };
-          EOF
+          deno eval "
+            const raw = Deno.env.get('COUNCILS_JSON') || '';
+            if (!raw) { console.error('COUNCILS_JSON secret is empty'); Deno.exit(1); }
+            let councils;
+            try { councils = JSON.parse(raw); } catch (e) { console.error('Invalid COUNCILS_JSON:', e.message); Deno.exit(1); }
+            const config = {
+              environment: 'production',
+              stellarNetwork: 'testnet',
+              rpcUrl: 'https://soroban-testnet.stellar.org',
+              horizonUrl: 'https://horizon-testnet.stellar.org',
+              councils,
+            };
+            Deno.writeTextFileSync('public/config.js',
+              'window.__DASHBOARD_CONFIG__ = ' + JSON.stringify(config, null, 2) + ';\n');
+            console.log('Generated config.js with', councils.length, 'council(s)');
+          "
 
       - name: Build production bundle
         run: deno task build -- --production

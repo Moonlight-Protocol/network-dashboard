@@ -4,13 +4,15 @@
  */
 import { resolve, normalize } from "@std/path";
 
-const PORT = Number(Deno.env.get("PORT") || "3030");
+const rawPort = Deno.env.get("PORT") || "3030";
+const PORT = /^\d+$/.test(rawPort) ? Number(rawPort) : 3030;
 const PUBLIC_ROOT = resolve(Deno.cwd(), "public");
 
 const SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
 };
 
 function getCSP(): string {

@@ -69,13 +69,14 @@ async function render(): Promise<void> {
     app.innerHTML = "";
     app.appendChild(element);
   } catch (error) {
+    console.warn("[router] View render failed:", error);
     app.innerHTML = "";
     const container = document.createElement("main");
     container.className = "container";
     renderError(
       container,
       "Something went wrong",
-      error instanceof Error ? error.message : String(error),
+      "Failed to load this page. Please try again.",
     );
     app.appendChild(container);
   }

@@ -3,8 +3,7 @@
  */
 import { renderNav } from "../components/nav.ts";
 import { COUNCILS } from "../lib/config.ts";
-import { getChannelSupply } from "../lib/stellar.ts";
-import { getContractEvents } from "../lib/stellar.ts";
+import { getChannelSupply, getProviderCount, queryErrors } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, formatAmount } from "../lib/dom.ts";
 import { getCountryName } from "../lib/world-map.ts";
 import { onCleanup } from "../lib/router.ts";
@@ -20,6 +19,7 @@ interface CouncilState {
     supply: bigint;
   }[];
   providerCount: number;
+  providerFromEvents: boolean;
   loading: boolean;
 }
 
@@ -36,41 +36,33 @@ export async function councilsView(): Promise<HTMLElement> {
   `;
   el.appendChild(main);
 
-  let cancelled = false;
-  onCleanup(() => { cancelled = true; });
+  const ctx = { cancelled: false };
+  onCleanup(() => { ctx.cancelled = true; });
 
-  // Load data async
-  loadCouncilData(main, cancelled);
+  loadCouncilData(main, ctx);
 
   return el;
 }
 
-async function loadCouncilData(main: HTMLElement, cancelled: boolean): Promise<void> {
-  const states: CouncilState[] = [];
+async function loadCouncilData(main: HTMLElement, ctx: { cancelled: boolean }): Promise<void> {
+  const states: CouncilState[] = COUNCILS.map(council => ({
+    name: council.name,
+    channelAuthId: council.channelAuthId,
+    jurisdictions: council.jurisdictions,
+    website: council.website,
+    channels: [],
+    providerCount: 0,
+    providerFromEvents: false,
+    loading: true,
+  }));
 
-  for (const council of COUNCILS) {
-    const state: CouncilState = {
-      name: council.name,
-      channelAuthId: council.channelAuthId,
-      jurisdictions: council.jurisdictions,
-      website: council.website,
-      channels: [],
-      providerCount: 0,
-      loading: true,
-    };
-    states.push(state);
-  }
-
-  // Render loading state
   renderCouncilTable(main, states);
 
-  // Fetch all data in parallel
   const promises: Promise<void>[] = [];
 
   for (const state of states) {
     const council = COUNCILS.find(c => c.channelAuthId === state.channelAuthId)!;
 
-    // Fetch supply for each channel
     for (const ch of council.channels) {
       promises.push(
         getChannelSupply(ch.privacyChannelId).then(supply => {
@@ -83,22 +75,17 @@ async function loadCouncilData(main: HTMLElement, cancelled: boolean): Promise<v
       );
     }
 
-    // Count providers from events
     promises.push(
-      getContractEvents(state.channelAuthId).then(events => {
-        let count = 0;
-        for (const e of events) {
-          if (e.type === "ProviderAdded") count++;
-          if (e.type === "ProviderRemoved") count--;
-        }
-        state.providerCount = Math.max(0, count);
+      getProviderCount(state.channelAuthId).then(result => {
+        state.providerCount = result.count;
+        state.providerFromEvents = result.fromEvents;
       }),
     );
   }
 
   await Promise.allSettled(promises);
 
-  if (cancelled) return;
+  if (ctx.cancelled) return;
 
   for (const state of states) {
     state.loading = false;
@@ -115,13 +102,19 @@ function renderCouncilTable(main: HTMLElement, states: CouncilState[]): void {
     return;
   }
 
-  // Stats row
   const totalChannels = states.reduce((sum, s) => sum + s.channels.length, 0);
   const totalProviders = states.reduce((sum, s) => sum + s.providerCount, 0);
   const totalSupply = states.reduce((sum, s) =>
     sum + s.channels.reduce((cs, c) => cs + c.supply, 0n), 0n);
 
+  const hasErrors = queryErrors.length > 0;
+  const providerNote = states.some(s => s.providerFromEvents)
+    ? ' <span class="text-muted" title="Based on recent on-chain events. Providers registered before the RPC retention window may not appear.">(recent)</span>'
+    : "";
+
   content.innerHTML = `
+    ${hasErrors ? `<div class="error-banner">Some data may be incomplete — network queries failed. <span class="text-muted">(${queryErrors.length} error${queryErrors.length !== 1 ? "s" : ""})</span></div>` : ""}
+
     <div class="stats-row">
       <div class="stat-card active">
         <span class="stat-value">${states.length}</span>
@@ -133,7 +126,7 @@ function renderCouncilTable(main: HTMLElement, states: CouncilState[]): void {
       </div>
       <div class="stat-card">
         <span class="stat-value">${totalProviders}</span>
-        <span class="stat-label">Providers</span>
+        <span class="stat-label">Providers${providerNote}</span>
       </div>
       <div class="stat-card">
         <span class="stat-value">${formatAmount(totalSupply)}</span>
@@ -173,7 +166,6 @@ function renderCouncilTable(main: HTMLElement, states: CouncilState[]): void {
     </table>
   `;
 
-  // Add click handlers for rows
   content.querySelectorAll(".clickable-row").forEach(row => {
     row.addEventListener("click", () => {
       const href = row.getAttribute("data-href");
