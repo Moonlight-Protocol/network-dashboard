@@ -3,8 +3,8 @@
  */
 import { renderNav } from "../components/nav.ts";
 import { COUNCILS } from "../lib/config.ts";
-import { getChannelSupply, getContractEvents } from "../lib/stellar.ts";
-import { escapeHtml, truncateAddress, formatAmount, timeAgo } from "../lib/dom.ts";
+import { getChannelSupply, getContractEvents, countProvidersFromEvents, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
+import { escapeHtml, truncateAddress, formatAmount, timeAgo, sanitizeUrl } from "../lib/dom.ts";
 import { getCountryName } from "../lib/world-map.ts";
 import { onCleanup } from "../lib/router.ts";
 import type { CouncilConfig } from "../lib/config.ts";
@@ -17,7 +17,12 @@ export async function councilDetailView(params?: Record<string, string>): Promis
   const main = document.createElement("main");
   main.className = "container";
 
-  const councilId = params?.id ? decodeURIComponent(params.id) : "";
+  let councilId = "";
+  try {
+    councilId = params?.id ? decodeURIComponent(params.id) : "";
+  } catch {
+    // Malformed percent-encoding in URL
+  }
   const council = COUNCILS.find(c => c.channelAuthId === councilId);
 
   if (!council) {
@@ -30,34 +35,34 @@ export async function councilDetailView(params?: Record<string, string>): Promis
     return el;
   }
 
+  const safeWebsite = council.website ? sanitizeUrl(council.website) : null;
+
   main.innerHTML = `
     <div style="margin-bottom:1rem">
       <a href="#/councils" class="btn-link">&larr; All Councils</a>
     </div>
     <h2>${escapeHtml(council.name)}</h2>
     <p class="mono text-muted" style="font-size:0.8rem;margin-bottom:0.5rem">${escapeHtml(council.channelAuthId)}</p>
-    <p class="text-muted">${council.jurisdictions.map(j => getCountryName(j)).join(", ")}${council.website ? ` &middot; <a href="${escapeHtml(council.website)}" target="_blank" rel="noopener">${escapeHtml(council.website)}</a>` : ""}</p>
+    <p class="text-muted">${council.jurisdictions.map(j => escapeHtml(getCountryName(j))).join(", ")}${safeWebsite ? ` &middot; <a href="${escapeHtml(safeWebsite)}" target="_blank" rel="noopener">${escapeHtml(council.website!)}</a>` : ""}</p>
     <div id="council-detail-content"><div class="loading">Loading council data...</div></div>
   `;
   el.appendChild(main);
 
-  let cancelled = false;
-  onCleanup(() => { cancelled = true; });
+  const ctx = { cancelled: false };
+  onCleanup(() => { ctx.cancelled = true; });
 
-  loadCouncilDetail(main, council, cancelled);
+  loadCouncilDetail(main, council, ctx).catch(() => {});
 
   return el;
 }
 
-async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, cancelled: boolean): Promise<void> {
-  // Fetch all data in parallel
+async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, ctx: { cancelled: boolean }): Promise<void> {
+  clearQueryErrors();
   const channelData: { id: string; asset: string; supply: bigint }[] = [];
   const allEvents: ContractEvent[] = [];
-  const providers: string[] = [];
 
   const promises: Promise<void>[] = [];
 
-  // Channel supplies
   for (const ch of council.channels) {
     promises.push(
       getChannelSupply(ch.privacyChannelId).then(supply => {
@@ -66,19 +71,12 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, canc
     );
   }
 
-  // Channel Auth events
   promises.push(
     getContractEvents(council.channelAuthId, undefined, 100).then(events => {
-      for (const e of events) {
-        allEvents.push(e);
-        if (e.type === "ProviderAdded" && e.value) {
-          providers.push(String(e.value));
-        }
-      }
+      allEvents.push(...events);
     }),
   );
 
-  // Privacy Channel events
   for (const ch of council.channels) {
     promises.push(
       getContractEvents(ch.privacyChannelId, undefined, 100).then(events => {
@@ -88,7 +86,7 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, canc
   }
 
   await Promise.allSettled(promises);
-  if (cancelled) return;
+  if (ctx.cancelled) return;
 
   allEvents.sort((a, b) => b.ledger - a.ledger);
 
@@ -99,17 +97,28 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, canc
   const txEvents = allEvents.filter(e =>
     !["ProviderAdded", "ProviderRemoved", "ContractInitialized"].includes(e.type)
   );
-  const uniqueProviders = [...new Set(providers)];
+
+  // Derive active providers using chronological event processing
+  const authEvents = allEvents.filter(e =>
+    e.contractId === council.channelAuthId &&
+    (e.type === "ProviderAdded" || e.type === "ProviderRemoved")
+  );
+  authEvents.sort((a, b) => a.ledger - b.ledger); // chronological order
+  const activeProviders = countProvidersFromEvents(authEvents);
+
+  const hasErrors = queryErrors.length > 0;
 
   content.innerHTML = `
+    ${hasErrors ? `<div class="error-banner">Some data may be incomplete — network queries failed.</div>` : ""}
+
     <div class="stats-row">
       <div class="stat-card active">
         <span class="stat-value">${channelData.length}</span>
         <span class="stat-label">Channels</span>
       </div>
       <div class="stat-card">
-        <span class="stat-value">${uniqueProviders.length}</span>
-        <span class="stat-label">Providers</span>
+        <span class="stat-value">${activeProviders.length}</span>
+        <span class="stat-label">Providers (recent)</span>
       </div>
       <div class="stat-card">
         <span class="stat-value">${formatAmount(totalSupply)}</span>
@@ -141,7 +150,7 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, canc
       </tbody>
     </table>
 
-    ${uniqueProviders.length > 0 ? `
+    ${activeProviders.length > 0 ? `
       <h3>Registered Providers</h3>
       <table>
         <thead>
@@ -150,7 +159,7 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, canc
           </tr>
         </thead>
         <tbody>
-          ${uniqueProviders.map(p => `
+          ${activeProviders.map(p => `
             <tr>
               <td class="mono">${escapeHtml(p)}</td>
             </tr>
@@ -159,7 +168,7 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, canc
       </table>
     ` : `
       <h3>Registered Providers</h3>
-      <div class="empty-state"><p>No providers discovered from on-chain events yet.</p></div>
+      <div class="empty-state"><p>No providers discovered from recent on-chain events.</p></div>
     `}
 
     <h3>Recent Activity</h3>

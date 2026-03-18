@@ -37,5 +37,5 @@ jobs:
       - name: Create tag
         if: steps.check.outputs.exists == 'false'
         run: |
-          git tag ${{ steps.version.outputs.tag }}
-          git push origin ${{ steps.version.outputs.tag }}
+          git tag "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"

@@ -4,13 +4,15 @@
  */
 import { resolve, normalize } from "@std/path";
 
-const PORT = Number(Deno.env.get("PORT") || "3030");
+const rawPort = Deno.env.get("PORT") || "3030";
+const PORT = /^\d+$/.test(rawPort) ? Number(rawPort) : 3030;
 const PUBLIC_ROOT = resolve(Deno.cwd(), "public");
 
 const SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
 };
 
 function getCSP(): string {
@@ -18,7 +20,7 @@ function getCSP(): string {
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self'",
-    "connect-src 'self' https://soroban-testnet.stellar.org https://horizon-testnet.stellar.org https://cdn.jsdelivr.net",
+    "connect-src 'self' https://soroban-testnet.stellar.org https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/",
   ].join("; ");
 }
 
@@ -36,7 +38,12 @@ function addSecurityHeaders(response: Response): Response {
 }
 
 function safePath(pathname: string): string | null {
-  const decoded = decodeURIComponent(pathname);
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
   const resolved = resolve(PUBLIC_ROOT, "." + normalize("/" + decoded));
   if (!resolved.startsWith(PUBLIC_ROOT)) return null;
   return resolved;
@@ -86,7 +93,10 @@ Deno.serve({ port: PORT }, async (req) => {
     try {
       const index = await Deno.readFile(resolve(PUBLIC_ROOT, "index.html"));
       return addSecurityHeaders(new Response(index, {
-        headers: { "Content-Type": "text/html; charset=utf-8" },
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
       }));
     } catch {
       return addSecurityHeaders(new Response("Not Found", { status: 404 }));

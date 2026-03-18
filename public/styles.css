@@ -335,3 +335,14 @@ h3 { margin: 1.5rem 0 0.5rem; color: var(--text-muted); font-size: 0.875rem; tex
   font-size: 0.7rem;
   color: var(--text-muted);
 }
+
+/* Error banner */
+.error-banner {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--inactive);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: var(--inactive);
+  margin-bottom: 1rem;
+}
