@@ -18,7 +18,7 @@ function getCSP(): string {
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self'",
-    "connect-src 'self' https://soroban-testnet.stellar.org https://horizon-testnet.stellar.org",
+    "connect-src 'self' https://soroban-testnet.stellar.org https://horizon-testnet.stellar.org https://cdn.jsdelivr.net",
   ].join("; ");
 }
 

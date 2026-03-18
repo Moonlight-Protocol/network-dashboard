@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { COUNTRY_COORDS, getCountryName } from "./geo.ts";
+import { COUNTRIES, getCountryName, projectCountry } from "./world-map.ts";
 
 Deno.test("getCountryName returns full name for known code", () => {
   assertEquals(getCountryName("US"), "United States");
@@ -11,10 +11,23 @@ Deno.test("getCountryName returns code for unknown country", () => {
   assertEquals(getCountryName("ZZ"), "ZZ");
 });
 
-Deno.test("all country coords are within SVG viewBox", () => {
-  for (const [code, coord] of Object.entries(COUNTRY_COORDS)) {
-    if (coord.x < 0 || coord.x > 1000 || coord.y < 0 || coord.y > 500) {
-      throw new Error(`${code} out of bounds: (${coord.x}, ${coord.y})`);
+Deno.test("all country coords have valid lon/lat ranges", () => {
+  for (const [code, c] of Object.entries(COUNTRIES)) {
+    if (c.lon < -180 || c.lon > 180 || c.lat < -90 || c.lat > 90) {
+      throw new Error(`${code} out of bounds: (${c.lon}, ${c.lat})`);
     }
   }
+});
+
+Deno.test("projectCountry returns projected coordinates", () => {
+  const result = projectCountry("US", 1000, 500);
+  assertEquals(result !== null, true);
+  if (result) {
+    assertEquals(result.x > 0 && result.x < 1000, true);
+    assertEquals(result.y > 0 && result.y < 500, true);
+  }
+});
+
+Deno.test("projectCountry returns null for unknown code", () => {
+  assertEquals(projectCountry("ZZ", 1000, 500), null);
 });
