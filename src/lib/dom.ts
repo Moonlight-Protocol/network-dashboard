@@ -30,7 +30,12 @@ export function truncateAddress(addr: string): string {
  * Uses string-based division for values above Number.MAX_SAFE_INTEGER.
  */
 export function formatAmount(stroops: bigint | number | string): string {
-  const bi = typeof stroops === "bigint" ? stroops : BigInt(stroops || 0);
+  let bi: bigint;
+  try {
+    bi = typeof stroops === "bigint" ? stroops : BigInt(stroops || 0);
+  } catch {
+    bi = 0n;
+  }
   const whole = bi / 10_000_000n;
   const frac = bi % 10_000_000n;
   const fracStr = (frac < 0n ? -frac : frac).toString().padStart(7, "0").slice(0, 2);

@@ -4,8 +4,13 @@
  */
 import { RPC_URL, getNetworkPassphrase } from "./config.ts";
 
-/** Errors encountered during queries, exposed for UI error reporting. */
+/** Errors encountered during the current view's queries. Cleared on each navigation. */
 export const queryErrors: { source: string; message: string; time: number }[] = [];
+
+/** Clear accumulated query errors. Call at the start of each view load. */
+export function clearQueryErrors(): void {
+  queryErrors.length = 0;
+}
 
 function recordError(source: string, err: unknown): void {
   const message = err instanceof Error ? err.message : String(err);
@@ -106,7 +111,10 @@ export async function getChannelSupply(contractId: string): Promise<bigint> {
     const server = await getRpcServer();
     const contract = new s.Contract(contractId);
     const result = await simulateReadCall(server, s, contract, "supply");
-    return BigInt(result as string | number | bigint | boolean);
+    if (typeof result === "bigint") return result;
+    if (typeof result === "number" && isFinite(result)) return BigInt(Math.trunc(result));
+    if (typeof result === "string" && /^-?\d+$/.test(result)) return BigInt(result);
+    throw new Error(`Unexpected supply type: ${typeof result}`);
   } catch (err) {
     recordError(`getChannelSupply(${contractId.slice(0, 8)})`, err);
     return 0n;

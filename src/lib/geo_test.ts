@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { COUNTRIES, getCountryName, projectCountry } from "./world-map.ts";
+import { COUNTRIES, getCountryName, projectCountry, sanitizeSvgPath } from "./world-map.ts";
 
 Deno.test("getCountryName returns full name for known code", () => {
   assertEquals(getCountryName("US"), "United States");
@@ -30,4 +30,26 @@ Deno.test("projectCountry returns projected coordinates", () => {
 
 Deno.test("projectCountry returns null for unknown code", () => {
   assertEquals(projectCountry("ZZ", 1000, 500), null);
+});
+
+Deno.test("sanitizeSvgPath allows valid path commands", () => {
+  const valid = "M100.5,200.3 L300,400 Z";
+  assertEquals(sanitizeSvgPath(valid), valid);
+});
+
+Deno.test("sanitizeSvgPath strips script injection", () => {
+  const malicious = 'M0,0" /><foreignObject><body onload="alert(1)">';
+  const result = sanitizeSvgPath(malicious);
+  assertEquals(result.includes("<"), false);
+  assertEquals(result.includes(">"), false);
+  assertEquals(result.includes('"'), false);
+});
+
+Deno.test("sanitizeSvgPath strips event handlers", () => {
+  const malicious = "M0,0 onmouseover=alert(1)";
+  const result = sanitizeSvgPath(malicious);
+  // Only valid chars remain: M0,0 omousovelert1
+  assertEquals(result.includes("="), false);
+  assertEquals(result.includes("("), false);
+  assertEquals(result.includes(")"), false);
 });

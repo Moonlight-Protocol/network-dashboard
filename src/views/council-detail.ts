@@ -3,7 +3,7 @@
  */
 import { renderNav } from "../components/nav.ts";
 import { COUNCILS } from "../lib/config.ts";
-import { getChannelSupply, getContractEvents, getProviderCount, queryErrors } from "../lib/stellar.ts";
+import { getChannelSupply, getContractEvents, getProviderCount, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, formatAmount, timeAgo, sanitizeUrl } from "../lib/dom.ts";
 import { getCountryName } from "../lib/world-map.ts";
 import { onCleanup } from "../lib/router.ts";
@@ -17,7 +17,12 @@ export async function councilDetailView(params?: Record<string, string>): Promis
   const main = document.createElement("main");
   main.className = "container";
 
-  const councilId = params?.id ? decodeURIComponent(params.id) : "";
+  let councilId = "";
+  try {
+    councilId = params?.id ? decodeURIComponent(params.id) : "";
+  } catch {
+    // Malformed percent-encoding in URL
+  }
   const council = COUNCILS.find(c => c.channelAuthId === councilId);
 
   if (!council) {
@@ -52,6 +57,7 @@ export async function councilDetailView(params?: Record<string, string>): Promis
 }
 
 async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, ctx: { cancelled: boolean }): Promise<void> {
+  clearQueryErrors();
   const channelData: { id: string; asset: string; supply: bigint }[] = [];
   const allEvents: ContractEvent[] = [];
 

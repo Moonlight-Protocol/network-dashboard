@@ -3,18 +3,50 @@
  * Fetches land-110m from CDN and renders SVG paths via equirectangular projection.
  */
 
-const TOPO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json";
+const TOPO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-110m.json";
 
-// deno-lint-ignore no-explicit-any
-type TopoJSON = any;
+// Only valid SVG path commands and numeric values — strips anything else.
+const SVG_PATH_VALID = /[^MmLlHhVvCcSsQqTtAaZz0-9eE.,\s\-+]/g;
+
+interface TopoTransform {
+  scale: [number, number];
+  translate: [number, number];
+}
+
+interface TopoGeometry {
+  type: string;
+  // Polygon: number[][], MultiPolygon: number[][][]
+  // deno-lint-ignore no-explicit-any
+  arcs: any;
+}
+
+interface TopoData {
+  arcs: number[][][];
+  transform: TopoTransform;
+  objects: { land: { geometries: TopoGeometry[] } };
+}
 
 /**
- * Fetch and render world landmasses as SVG path strings.
+ * Sanitize an SVG path `d` attribute by removing any characters
+ * that are not valid path commands, digits, or separators.
+ */
+export function sanitizeSvgPath(d: string): string {
+  return d.replace(SVG_PATH_VALID, "");
+}
+
+/**
+ * Fetch and render world landmasses as sanitized SVG path strings.
  */
 export async function fetchWorldPaths(width: number, height: number): Promise<string[]> {
   const res = await fetch(TOPO_URL);
   if (!res.ok) throw new Error(`Failed to fetch world map data: ${res.status}`);
-  const topo: TopoJSON = await res.json();
+  const topo = await res.json() as TopoData;
+
+  // Basic structural validation
+  if (!topo?.arcs || !topo?.transform || !topo?.objects?.land?.geometries) {
+    throw new Error("Invalid TopoJSON structure");
+  }
+
   return topoToSvgPaths(topo, width, height);
 }
 
@@ -22,7 +54,7 @@ function projectPoint(lon: number, lat: number, w: number, h: number): [number, 
   return [(lon + 180) / 360 * w, (90 - lat) / 180 * h];
 }
 
-function topoToSvgPaths(topo: TopoJSON, width: number, height: number): string[] {
+function topoToSvgPaths(topo: TopoData, width: number, height: number): string[] {
   const { scale, translate } = topo.transform;
 
   // Decode delta-encoded arcs into projected coordinates
@@ -64,7 +96,7 @@ function topoToSvgPaths(topo: TopoJSON, width: number, height: number): string[]
     }
   }
 
-  return paths;
+  return paths.map(sanitizeSvgPath);
 }
 
 /**

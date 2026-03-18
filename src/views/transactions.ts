@@ -3,7 +3,7 @@
  */
 import { renderNav } from "../components/nav.ts";
 import { COUNCILS } from "../lib/config.ts";
-import { getContractEvents, queryErrors } from "../lib/stellar.ts";
+import { getContractEvents, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, timeAgo } from "../lib/dom.ts";
 import { onCleanup } from "../lib/router.ts";
 import type { ContractEvent } from "../lib/stellar.ts";
@@ -37,6 +37,7 @@ export async function transactionsView(): Promise<HTMLElement> {
 }
 
 async function loadTransactions(main: HTMLElement, ctx: { cancelled: boolean }): Promise<void> {
+  clearQueryErrors();
   const feed: FeedEntry[] = [];
   const promises: Promise<void>[] = [];
 

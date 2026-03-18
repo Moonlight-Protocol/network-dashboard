@@ -20,7 +20,7 @@ function getCSP(): string {
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self'",
-    "connect-src 'self' https://soroban-testnet.stellar.org https://horizon-testnet.stellar.org https://cdn.jsdelivr.net",
+    "connect-src 'self' https://soroban-testnet.stellar.org https://horizon-testnet.stellar.org https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/",
   ].join("; ");
 }
 
@@ -88,7 +88,10 @@ Deno.serve({ port: PORT }, async (req) => {
     try {
       const index = await Deno.readFile(resolve(PUBLIC_ROOT, "index.html"));
       return addSecurityHeaders(new Response(index, {
-        headers: { "Content-Type": "text/html; charset=utf-8" },
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
       }));
     } catch {
       return addSecurityHeaders(new Response("Not Found", { status: 404 }));

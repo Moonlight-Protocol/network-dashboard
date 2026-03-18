@@ -3,7 +3,7 @@
  */
 import { renderNav } from "../components/nav.ts";
 import { COUNCILS } from "../lib/config.ts";
-import { getChannelSupply, getProviderCount, queryErrors } from "../lib/stellar.ts";
+import { getChannelSupply, getProviderCount, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, formatAmount } from "../lib/dom.ts";
 import { getCountryName } from "../lib/world-map.ts";
 import { onCleanup } from "../lib/router.ts";
@@ -45,6 +45,7 @@ export async function councilsView(): Promise<HTMLElement> {
 }
 
 async function loadCouncilData(main: HTMLElement, ctx: { cancelled: boolean }): Promise<void> {
+  clearQueryErrors();
   const states: CouncilState[] = COUNCILS.map(council => ({
     name: council.name,
     channelAuthId: council.channelAuthId,
