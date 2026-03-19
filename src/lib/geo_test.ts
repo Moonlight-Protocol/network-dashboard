@@ -19,17 +19,18 @@ Deno.test("all country coords have valid lon/lat ranges", () => {
   }
 });
 
-Deno.test("projectCountry returns projected coordinates", () => {
-  const result = projectCountry("US", 1000, 500);
+Deno.test("projectCountry returns projected coordinates within SVG viewBox", () => {
+  const result = projectCountry("US", 0, 0);
   assertEquals(result !== null, true);
   if (result) {
-    assertEquals(result.x > 0 && result.x < 1000, true);
-    assertEquals(result.y > 0 && result.y < 500, true);
+    // SVG viewBox: 30.767 241.591 784.077 458.627
+    assertEquals(result.x > 30 && result.x < 815, true);
+    assertEquals(result.y > 241 && result.y < 700, true);
   }
 });
 
 Deno.test("projectCountry returns null for unknown code", () => {
-  assertEquals(projectCountry("ZZ", 1000, 500), null);
+  assertEquals(projectCountry("ZZ", 0, 0), null);
 });
 
 Deno.test("sanitizeSvgPath allows valid path commands", () => {
