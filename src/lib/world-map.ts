@@ -1,114 +1,39 @@
 /**
- * World map renderer using Natural Earth TopoJSON data.
- * Fetches land-110m from CDN and renders SVG paths via equirectangular projection.
+ * World map renderer using a static SVG map.
+ * Uses simple-world-map (CC BY-SA 3.0, Al MacDonald / Fritz Lekschas)
+ * with ISO 3166-1 country IDs on each path.
+ *
+ * The SVG is served as a static asset from public/world-map.svg.
+ * Country coordinates for marker placement use the same hardcoded
+ * centroids as before, projected via equirectangular transform into
+ * the SVG's coordinate space.
  */
 
-const TOPO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-110m.json";
-
-// Only valid SVG path commands and numeric values — strips anything else.
-const SVG_PATH_VALID = /[^MmLlHhVvCcSsQqTtAaZz0-9eE.,\s\-+]/g;
-
-interface TopoTransform {
-  scale: [number, number];
-  translate: [number, number];
-}
-
-interface TopoGeometry {
-  type: string;
-  // Polygon: number[][], MultiPolygon: number[][][]
-  // deno-lint-ignore no-explicit-any
-  arcs: any;
-}
-
-interface TopoData {
-  arcs: number[][][];
-  transform: TopoTransform;
-  objects: { land: { geometries: TopoGeometry[] } };
-}
+// Original SVG viewBox: 30.767 241.591 784.077 458.627
+const SVG_VB_X = 30.767;
+const SVG_VB_Y = 241.591;
+const SVG_VB_W = 784.077;
+const SVG_VB_H = 458.627;
 
 /**
- * Sanitize an SVG path `d` attribute by removing any characters
- * that are not valid path commands, digits, or separators.
+ * Fetch the world map SVG from the local static asset.
+ * Returns the raw SVG string with all country paths.
  */
-export function sanitizeSvgPath(d: string): string {
-  return d.replace(SVG_PATH_VALID, "");
-}
-
-/**
- * Fetch and render world landmasses as sanitized SVG path strings.
- */
-export async function fetchWorldPaths(width: number, height: number): Promise<string[]> {
+export async function fetchWorldSvg(): Promise<string> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15_000);
-  let res: Response;
+  const timer = setTimeout(() => controller.abort(), 10_000);
   try {
-    res = await fetch(TOPO_URL, { signal: controller.signal });
+    const res = await fetch("/world-map.svg", { signal: controller.signal });
+    if (!res.ok) throw new Error(`Failed to load map: ${res.status}`);
+    return await res.text();
   } finally {
     clearTimeout(timer);
   }
-  if (!res.ok) throw new Error(`Failed to fetch world map data: ${res.status}`);
-  const topo = await res.json() as TopoData;
-
-  // Basic structural validation
-  if (!topo?.arcs || !topo?.transform || !topo?.objects?.land?.geometries) {
-    throw new Error("Invalid TopoJSON structure");
-  }
-
-  return topoToSvgPaths(topo, width, height);
-}
-
-function projectPoint(lon: number, lat: number, w: number, h: number): [number, number] {
-  return [(lon + 180) / 360 * w, (90 - lat) / 180 * h];
-}
-
-function topoToSvgPaths(topo: TopoData, width: number, height: number): string[] {
-  const { scale, translate } = topo.transform;
-
-  // Decode delta-encoded arcs into projected coordinates
-  const decodedArcs: [number, number][][] = topo.arcs.map((arc: number[][]) => {
-    let x = 0, y = 0;
-    return arc.map(([dx, dy]: number[]) => {
-      x += dx;
-      y += dy;
-      const lon = x * scale[0] + translate[0];
-      const lat = y * scale[1] + translate[1];
-      return projectPoint(lon, lat, width, height);
-    });
-  });
-
-  function resolveArc(index: number): [number, number][] {
-    if (index >= 0) return decodedArcs[index];
-    return [...decodedArcs[~index]].reverse();
-  }
-
-  function ringToPathD(ring: number[]): string {
-    const points = ring.flatMap(i => resolveArc(i));
-    return points
-      .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`)
-      .join(" ") + " Z";
-  }
-
-  const paths: string[] = [];
-  const land = topo.objects.land;
-
-  for (const geom of land.geometries) {
-    if (geom.type === "Polygon") {
-      paths.push(geom.arcs.map((r: number[]) => ringToPathD(r)).join(" "));
-    } else if (geom.type === "MultiPolygon") {
-      paths.push(
-        geom.arcs
-          .map((poly: number[][]) => poly.map((r: number[]) => ringToPathD(r)).join(" "))
-          .join(" "),
-      );
-    }
-  }
-
-  return paths.map(sanitizeSvgPath);
 }
 
 /**
- * Country coordinates (capital cities, lon/lat).
- * Projected at render time using the same equirectangular transform.
+ * Country coordinates (centroids, lon/lat).
+ * Projected at render time into the SVG's coordinate space.
  */
 export const COUNTRIES: Record<string, { lon: number; lat: number; name: string }> = {
   // Americas
@@ -181,9 +106,23 @@ export function getCountryName(code: string): string {
   return COUNTRIES[code]?.name ?? code;
 }
 
-export function projectCountry(code: string, width: number, height: number): { x: number; y: number } | null {
-  const c = COUNTRIES[code];
+/**
+ * Project a country's centroid into the SVG's coordinate space.
+ * Uses the same equirectangular projection as the SVG map.
+ */
+export function projectCountry(
+  code: string,
+  _width: number,
+  _height: number,
+): { x: number; y: number } | null {
+  const c = COUNTRIES[code.toUpperCase()];
   if (!c) return null;
-  const [x, y] = projectPoint(c.lon, c.lat, width, height);
+
+  // Equirectangular: map lon/lat to the SVG viewBox coordinate space.
+  // The SVG's viewBox maps roughly to -180..180 lon, -60..85 lat
+  // (standard world map cropping).
+  const x = SVG_VB_X + ((c.lon + 180) / 360) * SVG_VB_W;
+  const y = SVG_VB_Y + ((85 - c.lat) / 145) * SVG_VB_H;
+
   return { x, y };
 }

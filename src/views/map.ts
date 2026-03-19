@@ -1,14 +1,12 @@
 /**
  * Map view — world map with councils plotted by jurisdiction.
+ * Uses a static SVG map (simple-world-map, CC BY-SA 3.0).
  */
 import { renderNav } from "../components/nav.ts";
 import { COUNCILS } from "../lib/config.ts";
-import { fetchWorldPaths, projectCountry, getCountryName } from "../lib/world-map.ts";
+import { fetchWorldSvg, projectCountry, getCountryName } from "../lib/world-map.ts";
 import { escapeHtml, truncateAddress } from "../lib/dom.ts";
 import { onCleanup } from "../lib/router.ts";
-
-const MAP_W = 1000;
-const MAP_H = 500;
 
 export async function mapView(): Promise<HTMLElement> {
   const el = document.createElement("div");
@@ -43,38 +41,40 @@ export async function mapView(): Promise<HTMLElement> {
   const ctx = { cancelled: false };
   onCleanup(() => { ctx.cancelled = true; });
 
-  // Load the map async
   try {
-    const paths = await fetchWorldPaths(MAP_W, MAP_H);
+    const svgText = await fetchWorldSvg();
     if (ctx.cancelled) return el;
 
-    const dots = buildCouncilMarkers();
     const mapContainer = main.querySelector(".map-container")!;
 
+    // Parse the SVG to extract paths, then wrap in our styled SVG
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
+    const origSvg = svgDoc.querySelector("svg");
+    if (!origSvg) throw new Error("Invalid SVG");
+
+    const viewBox = origSvg.getAttribute("viewBox") || "0 0 800 500";
+
+    // Extract all path elements
+    const pathElements = svgDoc.querySelectorAll("path");
+    const pathStrings: string[] = [];
+    pathElements.forEach(p => {
+      const d = p.getAttribute("d");
+      if (d) pathStrings.push(d);
+    });
+
+    const dots = buildCouncilMarkers();
+
     mapContainer.innerHTML = `
-      <svg viewBox="0 0 ${MAP_W} ${MAP_H}" class="world-map" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="${viewBox}" class="world-map" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
         <!-- Background -->
-        <rect width="${MAP_W}" height="${MAP_H}" fill="var(--surface)" rx="8" />
-
-        <!-- Graticule -->
-        <g stroke="var(--border)" stroke-width="0.3" opacity="0.3">
-          ${Array.from({ length: 11 }, (_, i) => {
-            const x = (i + 1) * (MAP_W / 12);
-            return `<line x1="${x}" y1="0" x2="${x}" y2="${MAP_H}" />`;
-          }).join("")}
-          ${Array.from({ length: 5 }, (_, i) => {
-            const y = (i + 1) * (MAP_H / 6);
-            return `<line x1="0" y1="${y}" x2="${MAP_W}" y2="${y}" />`;
-          }).join("")}
-        </g>
-
-        <!-- Equator -->
-        <line x1="0" y1="${MAP_H / 2}" x2="${MAP_W}" y2="${MAP_H / 2}"
-              stroke="var(--border)" stroke-width="0.4" opacity="0.5" stroke-dasharray="4,4" />
+        <rect x="${viewBox.split(" ")[0]}" y="${viewBox.split(" ")[1]}"
+              width="${viewBox.split(" ")[2]}" height="${viewBox.split(" ")[3]}"
+              fill="var(--surface)" />
 
         <!-- Land masses -->
-        <g fill="#1e2130" stroke="var(--border)" stroke-width="0.4">
-          ${paths.map(d => `<path d="${d}" />`).join("\n          ")}
+        <g fill="#1e2130" stroke="var(--border)" stroke-width="0.3">
+          ${pathStrings.map(d => `<path d="${d}" />`).join("\n          ")}
         </g>
 
         <!-- Council markers -->
@@ -85,7 +85,7 @@ export async function mapView(): Promise<HTMLElement> {
     console.warn("[map] Failed to load world map:", err);
     if (!ctx.cancelled) {
       const mapContainer = main.querySelector(".map-container")!;
-      mapContainer.innerHTML = `<div class="empty-state"><p>Failed to load map data. Please try again later.</p></div>`;
+      mapContainer.innerHTML = `<div class="empty-state"><p>Failed to load map. Please try again later.</p></div>`;
     }
   }
 
@@ -97,26 +97,22 @@ function buildCouncilMarkers(): string {
 
   for (const council of COUNCILS) {
     for (const code of council.jurisdictions) {
-      const pos = projectCountry(code, MAP_W, MAP_H);
+      const pos = projectCountry(code, 0, 0);
       if (!pos) continue;
 
       const channels = council.channels.length;
       const r = Math.min(4 + channels * 2, 10);
 
-      // Glow ring
       markers.push(
         `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r + 6}" fill="var(--primary)" opacity="0.15" />`,
       );
-      // Outer ring
       markers.push(
         `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r + 2}" fill="none" stroke="var(--primary)" stroke-width="1" opacity="0.5" />`,
       );
-      // Main dot
       markers.push(
         `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" class="council-dot">` +
         `<title>${escapeHtml(council.name)} — ${escapeHtml(getCountryName(code))}</title></circle>`,
       );
-      // Label
       markers.push(
         `<text x="${pos.x.toFixed(1)}" y="${(pos.y - r - 6).toFixed(1)}" class="council-label">${escapeHtml(council.name)}</text>`,
       );
