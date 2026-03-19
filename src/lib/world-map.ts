@@ -9,6 +9,17 @@
  * the SVG's coordinate space.
  */
 
+// Only valid SVG path commands and numeric values.
+const SVG_PATH_VALID = /[^MmLlHhVvCcSsQqTtAaZz0-9eE.,\s\-+]/g;
+
+/**
+ * Sanitize an SVG path `d` attribute by removing any characters
+ * that are not valid path commands, digits, or separators.
+ */
+export function sanitizeSvgPath(d: string): string {
+  return d.replace(SVG_PATH_VALID, "");
+}
+
 // Original SVG viewBox: 30.767 241.591 784.077 458.627
 const SVG_VB_X = 30.767;
 const SVG_VB_Y = 241.591;
