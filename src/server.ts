@@ -16,11 +16,13 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 function getCSP(): string {
+  const environment = Deno.env.get("ENVIRONMENT") || "development";
+  const devSources = environment !== "production" ? " https://api.github.com" : "";
   return [
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self'",
-    "connect-src 'self' https://soroban-testnet.stellar.org https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/",
+    `connect-src 'self' https://soroban-testnet.stellar.org https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/${devSources}`,
   ].join("; ");
 }
 

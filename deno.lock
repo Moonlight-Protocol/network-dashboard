@@ -8,6 +8,7 @@
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/jsonc@0.213": "0.213.1",
     "jsr:@std/path@0.213": "0.213.1",
+    "jsr:@std/path@1": "1.1.4",
     "npm:@stellar/stellar-sdk@14.2.0": "14.2.0"
   },
   "jsr": {
@@ -16,7 +17,7 @@
       "dependencies": [
         "jsr:@std/encoding",
         "jsr:@std/jsonc",
-        "jsr:@std/path"
+        "jsr:@std/path@0.213"
       ]
     },
     "@std/assert@0.213.1": {
@@ -44,6 +45,12 @@
       "integrity": "f187bf278a172752e02fcbacf6bd78a335ed320d080a7ed3a5a59c3e88abc673",
       "dependencies": [
         "jsr:@std/assert@~0.213.1"
+      ]
+    },
+    "@std/path@1.1.4": {
+      "integrity": "1d2d43f39efb1b42f0b1882a25486647cb851481862dc7313390b2bb044314b5",
+      "dependencies": [
+        "jsr:@std/internal"
       ]
     }
   },
