@@ -37,13 +37,58 @@ jobs:
       - name: Build production bundle
         run: deno task build -- --production
 
-      - name: Deploy to Tigris
+      - name: Deploy to Tigris (testnet)
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.TIGRIS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.TIGRIS_SECRET_ACCESS_KEY }}
           AWS_REGION: auto
         run: |
           aws s3 sync public/ s3://network-dashboard/ \
+            --endpoint-url https://fly.storage.tigris.dev \
+            --acl public-read \
+            --delete \
+            --no-progress
+
+  deploy-mainnet:
+    runs-on: ubuntu-latest
+    environment: mainnet
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Generate mainnet config
+        env:
+          COUNCILS_JSON: ${{ secrets.MAINNET_COUNCILS_JSON }}
+        run: |
+          deno eval "
+            const raw = Deno.env.get('COUNCILS_JSON') || '';
+            if (!raw) { console.error('MAINNET_COUNCILS_JSON secret is empty'); Deno.exit(1); }
+            let councils;
+            try { councils = JSON.parse(raw); } catch (e) { console.error('Invalid COUNCILS_JSON:', e.message); Deno.exit(1); }
+            const config = {
+              environment: 'production',
+              stellarNetwork: 'mainnet',
+              rpcUrl: 'https://soroban-rpc.mainnet.stellar.gateway.fm',
+              councils,
+            };
+            Deno.writeTextFileSync('public/config.js',
+              'window.__DASHBOARD_CONFIG__ = ' + JSON.stringify(config, null, 2) + ';\n');
+            console.log('Generated config.js with', councils.length, 'council(s)');
+          "
+
+      - name: Build production bundle
+        run: deno task build -- --production
+
+      - name: Deploy to Tigris (mainnet)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.MAINNET_TIGRIS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.MAINNET_TIGRIS_SECRET_ACCESS_KEY }}
+          AWS_REGION: auto
+        run: |
+          aws s3 sync public/ s3://mainnet-network-dashboard/ \
             --endpoint-url https://fly.storage.tigris.dev \
             --acl public-read \
             --delete \
