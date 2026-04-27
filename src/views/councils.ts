@@ -2,7 +2,7 @@
  * Council list view — all registered councils with on-chain state.
  */
 import { renderNav } from "../components/nav.ts";
-import { COUNCILS } from "../lib/config.ts";
+import { getCouncils } from "../lib/config.ts";
 import { getChannelSupply, getContractEvents, countProvidersFromEvents, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, formatAmount } from "../lib/dom.ts";
 import { getCountryName } from "../lib/world-map.ts";
@@ -45,7 +45,10 @@ export async function councilsView(): Promise<HTMLElement> {
 
 async function loadCouncilData(main: HTMLElement, ctx: { cancelled: boolean }): Promise<void> {
   clearQueryErrors();
-  const states: CouncilState[] = COUNCILS.map(council => ({
+  const councils = await getCouncils();
+  if (ctx.cancelled) return;
+
+  const states: CouncilState[] = councils.map(council => ({
     name: council.name,
     channelAuthId: council.channelAuthId,
     jurisdictions: council.jurisdictions,
@@ -60,7 +63,7 @@ async function loadCouncilData(main: HTMLElement, ctx: { cancelled: boolean }): 
   const promises: Promise<void>[] = [];
 
   for (const state of states) {
-    const council = COUNCILS.find(c => c.channelAuthId === state.channelAuthId)!;
+    const council = councils.find(c => c.channelAuthId === state.channelAuthId)!;
 
     for (const ch of council.channels) {
       promises.push(
