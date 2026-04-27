@@ -3,7 +3,7 @@
  * Uses a static SVG map (simple-world-map, CC BY-SA 3.0).
  */
 import { renderNav } from "../components/nav.ts";
-import { COUNCILS } from "../lib/config.ts";
+import { getCouncils, type CouncilConfig } from "../lib/config.ts";
 import { fetchWorldSvg, projectCountry, getCountryName } from "../lib/world-map.ts";
 import { escapeHtml, truncateAddress } from "../lib/dom.ts";
 import { onCleanup } from "../lib/router.ts";
@@ -21,25 +21,33 @@ export async function mapView(): Promise<HTMLElement> {
       <div id="map-loading" class="loading" style="text-align:center;padding:4rem 0">Loading map...</div>
     </div>
     <h3>Councils by Jurisdiction</h3>
-    <div class="council-grid">
-      ${COUNCILS.map(c => `
-        <a href="#/council/${encodeURIComponent(c.channelAuthId)}" class="council-card">
-          <div class="council-card-header">
-            <span class="council-name">${escapeHtml(c.name)}</span>
-            <span class="badge badge-active">${c.channels.length} channel${c.channels.length !== 1 ? "s" : ""}</span>
-          </div>
-          <div class="council-card-meta">
-            <span>${c.jurisdictions.map(j => escapeHtml(getCountryName(j))).join(", ")}</span>
-          </div>
-          <div class="council-card-id mono">${truncateAddress(c.channelAuthId)}</div>
-        </a>
-      `).join("")}
-    </div>
+    <div class="council-grid"><div class="loading">Loading councils...</div></div>
   `;
   el.appendChild(main);
 
   const ctx = { cancelled: false };
   onCleanup(() => { ctx.cancelled = true; });
+
+  const councils = await getCouncils();
+  if (ctx.cancelled) return el;
+
+  const grid = main.querySelector(".council-grid");
+  if (grid) {
+    grid.innerHTML = councils.length === 0
+      ? `<div class="empty-state"><p>No councils registered yet.</p></div>`
+      : councils.map(c => `
+          <a href="#/council/${encodeURIComponent(c.channelAuthId)}" class="council-card">
+            <div class="council-card-header">
+              <span class="council-name">${escapeHtml(c.name)}</span>
+              <span class="badge badge-active">${c.channels.length} channel${c.channels.length !== 1 ? "s" : ""}</span>
+            </div>
+            <div class="council-card-meta">
+              <span>${c.jurisdictions.map(j => escapeHtml(getCountryName(j))).join(", ")}</span>
+            </div>
+            <div class="council-card-id mono">${truncateAddress(c.channelAuthId)}</div>
+          </a>
+        `).join("");
+  }
 
   try {
     const svgText = await fetchWorldSvg();
@@ -63,7 +71,7 @@ export async function mapView(): Promise<HTMLElement> {
       if (d) pathStrings.push(d);
     });
 
-    const dots = buildCouncilMarkers();
+    const dots = buildCouncilMarkers(councils);
 
     mapContainer.innerHTML = `
       <svg viewBox="${viewBox}" class="world-map" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
@@ -92,10 +100,10 @@ export async function mapView(): Promise<HTMLElement> {
   return el;
 }
 
-function buildCouncilMarkers(): string {
+function buildCouncilMarkers(councils: CouncilConfig[]): string {
   const markers: string[] = [];
 
-  for (const council of COUNCILS) {
+  for (const council of councils) {
     for (const code of council.jurisdictions) {
       const pos = projectCountry(code, 0, 0);
       if (!pos) continue;

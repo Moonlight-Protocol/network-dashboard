@@ -2,7 +2,7 @@
  * Council detail view — drill into a council's channels, PPs, and activity.
  */
 import { renderNav } from "../components/nav.ts";
-import { COUNCILS } from "../lib/config.ts";
+import { getCouncils } from "../lib/config.ts";
 import { getChannelSupply, getContractEvents, countProvidersFromEvents, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, formatAmount, timeAgo, sanitizeUrl } from "../lib/dom.ts";
 import { getCountryName } from "../lib/world-map.ts";
@@ -23,35 +23,49 @@ export async function councilDetailView(params?: Record<string, string>): Promis
   } catch {
     // Malformed percent-encoding in URL
   }
-  const council = COUNCILS.find(c => c.channelAuthId === councilId);
 
-  if (!council) {
-    main.innerHTML = `
-      <h2>Council Not Found</h2>
-      <p class="error-text">No council registered with ID ${escapeHtml(truncateAddress(councilId))}</p>
-      <a href="#/councils" class="btn-link">Back to councils</a>
-    `;
-    el.appendChild(main);
-    return el;
-  }
-
-  const safeWebsite = council.website ? sanitizeUrl(council.website) : null;
-
-  main.innerHTML = `
-    <div style="margin-bottom:1rem">
-      <a href="#/councils" class="btn-link">&larr; All Councils</a>
-    </div>
-    <h2>${escapeHtml(council.name)}</h2>
-    <p class="mono text-muted" style="font-size:0.8rem;margin-bottom:0.5rem">${escapeHtml(council.channelAuthId)}</p>
-    <p class="text-muted">${council.jurisdictions.map(j => escapeHtml(getCountryName(j))).join(", ")}${safeWebsite ? ` &middot; <a href="${escapeHtml(safeWebsite)}" target="_blank" rel="noopener">${escapeHtml(council.website!)}</a>` : ""}</p>
-    <div id="council-detail-content"><div class="loading">Loading council data...</div></div>
-  `;
+  main.innerHTML = `<div class="loading">Loading council...</div>`;
   el.appendChild(main);
 
   const ctx = { cancelled: false };
   onCleanup(() => { ctx.cancelled = true; });
 
-  loadCouncilDetail(main, council, ctx).catch(() => {});
+  getCouncils()
+    .then((councils) => {
+      if (ctx.cancelled) return;
+      const council = councils.find((c) => c.channelAuthId === councilId);
+
+      if (!council) {
+        main.innerHTML = `
+          <h2>Council Not Found</h2>
+          <p class="error-text">No council registered with ID ${escapeHtml(truncateAddress(councilId))}</p>
+          <a href="#/councils" class="btn-link">Back to councils</a>
+        `;
+        return;
+      }
+
+      const safeWebsite = council.website ? sanitizeUrl(council.website) : null;
+
+      main.innerHTML = `
+        <div style="margin-bottom:1rem">
+          <a href="#/councils" class="btn-link">&larr; All Councils</a>
+        </div>
+        <h2>${escapeHtml(council.name)}</h2>
+        <p class="mono text-muted" style="font-size:0.8rem;margin-bottom:0.5rem">${escapeHtml(council.channelAuthId)}</p>
+        <p class="text-muted">${council.jurisdictions.map((j) => escapeHtml(getCountryName(j))).join(", ")}${safeWebsite ? ` &middot; <a href="${escapeHtml(safeWebsite)}" target="_blank" rel="noopener">${escapeHtml(council.website!)}</a>` : ""}</p>
+        <div id="council-detail-content"><div class="loading">Loading council data...</div></div>
+      `;
+
+      loadCouncilDetail(main, council, ctx).catch(() => {});
+    })
+    .catch(() => {
+      if (ctx.cancelled) return;
+      main.innerHTML = `
+        <h2>Council Not Found</h2>
+        <p class="error-text">Unable to load council list.</p>
+        <a href="#/councils" class="btn-link">Back to councils</a>
+      `;
+    });
 
   return el;
 }

@@ -2,7 +2,7 @@
  * Transaction feed — recent transactions across all channels.
  */
 import { renderNav } from "../components/nav.ts";
-import { COUNCILS } from "../lib/config.ts";
+import { getCouncils } from "../lib/config.ts";
 import { getContractEvents, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
 import { escapeHtml, truncateAddress, timeAgo } from "../lib/dom.ts";
 import { onCleanup } from "../lib/router.ts";
@@ -38,10 +38,13 @@ export async function transactionsView(): Promise<HTMLElement> {
 
 async function loadTransactions(main: HTMLElement, ctx: { cancelled: boolean }): Promise<void> {
   clearQueryErrors();
+  const councils = await getCouncils();
+  if (ctx.cancelled) return;
+
   const feed: FeedEntry[] = [];
   const promises: Promise<void>[] = [];
 
-  for (const council of COUNCILS) {
+  for (const council of councils) {
     promises.push(
       getContractEvents(council.channelAuthId, undefined, 50).then(events => {
         for (const event of events) {
