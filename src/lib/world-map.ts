@@ -46,7 +46,10 @@ export async function fetchWorldSvg(): Promise<string> {
  * Country coordinates (centroids, lon/lat).
  * Projected at render time into the SVG's coordinate space.
  */
-export const COUNTRIES: Record<string, { lon: number; lat: number; name: string }> = {
+export const COUNTRIES: Record<
+  string,
+  { lon: number; lat: number; name: string }
+> = {
   // Americas
   US: { lon: -98, lat: 39, name: "United States" },
   CA: { lon: -106, lat: 56, name: "Canada" },

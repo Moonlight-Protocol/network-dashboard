@@ -2,7 +2,11 @@
  * Safe DOM helpers to avoid innerHTML XSS.
  */
 
-export function renderError(container: HTMLElement, title: string, message: string): void {
+export function renderError(
+  container: HTMLElement,
+  title: string,
+  message: string,
+): void {
   container.textContent = "";
   const h2 = document.createElement("h2");
   h2.textContent = title;
@@ -36,19 +40,28 @@ export function formatAmount(stroops: bigint | number | string): string {
   } else if (typeof stroops === "number" && isFinite(stroops)) {
     bi = BigInt(Math.trunc(stroops));
   } else if (typeof stroops === "string") {
-    try { bi = BigInt(stroops || "0"); } catch { bi = 0n; }
+    try {
+      bi = BigInt(stroops || "0");
+    } catch {
+      bi = 0n;
+    }
   } else {
     bi = 0n;
   }
   const whole = bi / 10_000_000n;
   const frac = bi % 10_000_000n;
-  const fracStr = (frac < 0n ? -frac : frac).toString().padStart(7, "0").slice(0, 2);
+  const fracStr = (frac < 0n ? -frac : frac).toString().padStart(7, "0").slice(
+    0,
+    2,
+  );
   const wholeStr = whole.toLocaleString();
   return `${wholeStr}.${fracStr}`;
 }
 
 export function timeAgo(isoOrSeconds: string | number): string {
-  const ts = typeof isoOrSeconds === "string" ? new Date(isoOrSeconds).getTime() : isoOrSeconds * 1000;
+  const ts = typeof isoOrSeconds === "string"
+    ? new Date(isoOrSeconds).getTime()
+    : isoOrSeconds * 1000;
   const diff = Math.floor((Date.now() - ts) / 1000);
   if (diff < 60) return `${diff}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;

@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { truncateAddress, formatAmount, timeAgo, sanitizeUrl } from "./dom.ts";
+import { formatAmount, sanitizeUrl, timeAgo, truncateAddress } from "./dom.ts";
 
 Deno.test("truncateAddress shortens long addresses", () => {
   const addr = "CAF7DFHTPSYIW5543WBXJODZCDI5WF5SSHBXGMPKFOYPFRDVWFDNBGX7";

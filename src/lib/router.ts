@@ -4,7 +4,9 @@
  */
 import { renderError } from "./dom.ts";
 
-type RouteHandler = (params?: Record<string, string>) => HTMLElement | Promise<HTMLElement>;
+type RouteHandler = (
+  params?: Record<string, string>,
+) => HTMLElement | Promise<HTMLElement>;
 
 const routes = new Map<string, RouteHandler>();
 let cleanups: (() => void)[] = [];
@@ -14,15 +16,17 @@ export function route(path: string, handler: RouteHandler): void {
 }
 
 export function navigate(path: string, opts?: { force?: boolean }): void {
-  const current = window.location.hash.replace(/^#/, "");
+  const current = globalThis.location.hash.replace(/^#/, "");
   if (opts?.force && current === path) {
     render();
   } else {
-    window.location.hash = path;
+    globalThis.location.hash = path;
   }
 }
 
-function matchRoute(path: string): { handler: RouteHandler; params: Record<string, string> } | null {
+function matchRoute(
+  path: string,
+): { handler: RouteHandler; params: Record<string, string> } | null {
   // Exact match first
   const exact = routes.get(path);
   if (exact) return { handler: exact, params: {} };
@@ -50,10 +54,13 @@ function matchRoute(path: string): { handler: RouteHandler; params: Record<strin
 }
 
 async function render(): Promise<void> {
-  const hash = window.location.hash || "#/";
-  const path = hash.startsWith("#") ? hash.slice(1).split("?")[0] : hash.split("?")[0];
+  const hash = globalThis.location.hash || "#/";
+  const path = hash.startsWith("#")
+    ? hash.slice(1).split("?")[0]
+    : hash.split("?")[0];
 
-  const matched = matchRoute(path) || (routes.has("/404") ? { handler: routes.get("/404")!, params: {} } : null);
+  const matched = matchRoute(path) ||
+    (routes.has("/404") ? { handler: routes.get("/404")!, params: {} } : null);
   if (!matched) return;
 
   for (const fn of cleanups) {
@@ -81,11 +88,11 @@ async function render(): Promise<void> {
     app.appendChild(container);
   }
 
-  window.scrollTo(0, 0);
+  globalThis.scrollTo(0, 0);
 }
 
 export function startRouter(): void {
-  window.addEventListener("hashchange", render);
+  globalThis.addEventListener("hashchange", render);
   render();
 }
 

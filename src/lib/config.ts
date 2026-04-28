@@ -31,12 +31,14 @@ declare global {
 
 // Read config from globalThis to work in both browser and Deno test environments.
 // window.__DASHBOARD_CONFIG__ is set by config.js which loads before app.js.
-const config: DashboardConfig | undefined =
-  "__DASHBOARD_CONFIG__" in globalThis
-    ? (globalThis as Record<string, unknown>).__DASHBOARD_CONFIG__ as DashboardConfig
-    : undefined;
+const config: DashboardConfig | undefined = "__DASHBOARD_CONFIG__" in globalThis
+  ? (globalThis as Record<string, unknown>)
+    .__DASHBOARD_CONFIG__ as DashboardConfig
+  : undefined;
 if (!config && typeof document !== "undefined") {
-  console.warn("Dashboard config not found — using testnet defaults. Ensure config.js loads before app.js.");
+  console.warn(
+    "Dashboard config not found — using testnet defaults. Ensure config.js loads before app.js.",
+  );
 }
 
 const c = config ?? {};
@@ -49,9 +51,12 @@ export const COUNCIL_PLATFORM_URL = c.councilPlatformUrl ?? "";
 
 export function getNetworkPassphrase(): string {
   switch (STELLAR_NETWORK) {
-    case "mainnet": return "Public Global Stellar Network ; September 2015";
-    case "standalone": return "Standalone Network ; February 2017";
-    default: return "Test SDF Network ; September 2015";
+    case "mainnet":
+      return "Public Global Stellar Network ; September 2015";
+    case "standalone":
+      return "Standalone Network ; February 2017";
+    default:
+      return "Test SDF Network ; September 2015";
   }
 }
 
@@ -63,7 +68,9 @@ interface PlatformCouncilEntry {
 
 function mapPlatformCouncils(entries: PlatformCouncilEntry[]): CouncilConfig[] {
   return entries
-    .filter((e): e is PlatformCouncilEntry & { council: { channelAuthId: string } } =>
+    .filter((
+      e,
+    ): e is PlatformCouncilEntry & { council: { channelAuthId: string } } =>
       !!e.council?.channelAuthId
     )
     .map((e) => ({
@@ -95,15 +102,21 @@ export function getCouncils(): Promise<CouncilConfig[]> {
   if (councilsCache) return councilsCache;
 
   if (!COUNCIL_PLATFORM_URL) {
-    console.warn("councilPlatformUrl not configured — council list will be empty.");
+    console.warn(
+      "councilPlatformUrl not configured — council list will be empty.",
+    );
     councilsCache = Promise.resolve([]);
     return councilsCache;
   }
 
-  const url = `${COUNCIL_PLATFORM_URL.replace(/\/+$/, "")}/api/v1/public/councils`;
+  const url = `${
+    COUNCIL_PLATFORM_URL.replace(/\/+$/, "")
+  }/api/v1/public/councils`;
   councilsCache = fetch(url)
     .then(async (res) => {
-      if (!res.ok) throw new Error(`council-platform returned HTTP ${res.status}`);
+      if (!res.ok) {
+        throw new Error(`council-platform returned HTTP ${res.status}`);
+      }
       const body = await res.json();
       const data = Array.isArray(body?.data) ? body.data : [];
       return mapPlatformCouncils(data);

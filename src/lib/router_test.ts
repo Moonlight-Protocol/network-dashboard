@@ -31,7 +31,11 @@ function matchRoute(
 }
 
 Deno.test("exact route match", () => {
-  const result = matchRoute("/councils", ["/map", "/councils", "/transactions"]);
+  const result = matchRoute("/councils", [
+    "/map",
+    "/councils",
+    "/transactions",
+  ]);
   assertEquals(result?.pattern, "/councils");
   assertEquals(result?.params, {});
 });

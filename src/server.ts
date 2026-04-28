@@ -2,7 +2,7 @@
  * Static file server for the network dashboard.
  * Serves files from public/ with security headers and path sanitization.
  */
-import { resolve, normalize } from "@std/path";
+import { normalize, resolve } from "@std/path";
 
 const rawPort = Deno.env.get("PORT") || "3030";
 const PORT = /^\d+$/.test(rawPort) ? Number(rawPort) : 3030;
@@ -17,7 +17,9 @@ const SECURITY_HEADERS: Record<string, string> = {
 
 function getCSP(): string {
   const environment = Deno.env.get("ENVIRONMENT") || "development";
-  const devSources = environment !== "production" ? " https://api.github.com" : "";
+  const devSources = environment !== "production"
+    ? " https://api.github.com"
+    : "";
   return [
     "default-src 'self'",
     "script-src 'self'",
@@ -81,12 +83,14 @@ Deno.serve({ port: PORT }, async (req) => {
     const cacheControl = ext === "html"
       ? "no-cache, no-store, must-revalidate"
       : "public, max-age=3600";
-    return addSecurityHeaders(new Response(file, {
-      headers: {
-        "Content-Type": contentTypes[ext] || "application/octet-stream",
-        "Cache-Control": cacheControl,
-      },
-    }));
+    return addSecurityHeaders(
+      new Response(file, {
+        headers: {
+          "Content-Type": contentTypes[ext] || "application/octet-stream",
+          "Cache-Control": cacheControl,
+        },
+      }),
+    );
   } catch {
     const ext = pathname.split("/").pop()?.includes(".") ?? false;
     if (ext) {
@@ -94,12 +98,14 @@ Deno.serve({ port: PORT }, async (req) => {
     }
     try {
       const index = await Deno.readFile(resolve(PUBLIC_ROOT, "index.html"));
-      return addSecurityHeaders(new Response(index, {
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-        },
-      }));
+      return addSecurityHeaders(
+        new Response(index, {
+          headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+          },
+        }),
+      );
     } catch {
       return addSecurityHeaders(new Response("Not Found", { status: 404 }));
     }

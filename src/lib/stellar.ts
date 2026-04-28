@@ -2,12 +2,13 @@
  * Read-only Stellar/Soroban helpers for querying contract state.
  * No wallet, no signing — purely read operations.
  */
-import { RPC_URL, getNetworkPassphrase } from "./config.ts";
+import { getNetworkPassphrase, RPC_URL } from "./config.ts";
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
 /** Errors encountered during the current view's queries. Cleared on each navigation. */
-export const queryErrors: { source: string; message: string; time: number }[] = [];
+export const queryErrors: { source: string; message: string; time: number }[] =
+  [];
 
 /** Generation counter to scope errors to the current view load. */
 let queryGeneration = 0;
@@ -28,12 +29,25 @@ function recordError(source: string, err: unknown, generation: number): void {
 }
 
 /** Wrap a promise with a timeout. */
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string,
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms,
+    );
     promise.then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e) => { clearTimeout(timer); reject(e); },
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
     );
   });
 }
@@ -45,7 +59,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 interface StellarSdkSubset {
   Contract: new (id: string) => StellarContract;
   Account: new (publicKey: string, sequence: string) => StellarAccount;
-  TransactionBuilder: new (account: StellarAccount, opts: { fee: string; networkPassphrase: string }) => TxBuilder;
+  TransactionBuilder: new (
+    account: StellarAccount,
+    opts: { fee: string; networkPassphrase: string },
+  ) => TxBuilder;
   scValToNative(val: unknown): unknown;
   rpc: {
     Server: new (url: string) => RpcServer;
@@ -139,8 +156,12 @@ export async function getChannelSupply(contractId: string): Promise<bigint> {
       "getChannelSupply",
     );
     if (typeof result === "bigint") return result;
-    if (typeof result === "number" && isFinite(result)) return BigInt(Math.trunc(result));
-    if (typeof result === "string" && /^-?\d+$/.test(result)) return BigInt(result);
+    if (typeof result === "number" && isFinite(result)) {
+      return BigInt(Math.trunc(result));
+    }
+    if (typeof result === "string" && /^-?\d+$/.test(result)) {
+      return BigInt(result);
+    }
     throw new Error(`Unexpected supply type: ${typeof result}`);
   } catch (err) {
     recordError(`getChannelSupply(${contractId.slice(0, 8)})`, err, gen);
@@ -248,7 +269,9 @@ export function countProvidersFromEvents(events: ContractEvent[]): string[] {
     if (e.type === "ProviderRemoved") state.set(addr, false);
   }
 
-  return [...state.entries()].filter(([, active]) => active).map(([addr]) => addr);
+  return [...state.entries()].filter(([, active]) => active).map(([addr]) =>
+    addr
+  );
 }
 
 function safeScValToNative(s: StellarSdkSubset, val: unknown): unknown {

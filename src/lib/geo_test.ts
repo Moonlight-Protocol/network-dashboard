@@ -1,5 +1,10 @@
 import { assertEquals } from "@std/assert";
-import { COUNTRIES, getCountryName, projectCountry, sanitizeSvgPath } from "./world-map.ts";
+import {
+  COUNTRIES,
+  getCountryName,
+  projectCountry,
+  sanitizeSvgPath,
+} from "./world-map.ts";
 
 Deno.test("getCountryName returns full name for known code", () => {
   assertEquals(getCountryName("US"), "United States");
