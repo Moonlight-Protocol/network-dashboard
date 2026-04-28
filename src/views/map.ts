@@ -3,8 +3,12 @@
  * Uses a static SVG map (simple-world-map, CC BY-SA 3.0).
  */
 import { renderNav } from "../components/nav.ts";
-import { getCouncils, type CouncilConfig } from "../lib/config.ts";
-import { fetchWorldSvg, projectCountry, getCountryName } from "../lib/world-map.ts";
+import { type CouncilConfig, getCouncils } from "../lib/config.ts";
+import {
+  fetchWorldSvg,
+  getCountryName,
+  projectCountry,
+} from "../lib/world-map.ts";
 import { escapeHtml, truncateAddress } from "../lib/dom.ts";
 import { onCleanup } from "../lib/router.ts";
 
@@ -26,7 +30,9 @@ export async function mapView(): Promise<HTMLElement> {
   el.appendChild(main);
 
   const ctx = { cancelled: false };
-  onCleanup(() => { ctx.cancelled = true; });
+  onCleanup(() => {
+    ctx.cancelled = true;
+  });
 
   const councils = await getCouncils();
   if (ctx.cancelled) return el;
@@ -35,16 +41,24 @@ export async function mapView(): Promise<HTMLElement> {
   if (grid) {
     grid.innerHTML = councils.length === 0
       ? `<div class="empty-state"><p>No councils registered yet.</p></div>`
-      : councils.map(c => `
-          <a href="#/council/${encodeURIComponent(c.channelAuthId)}" class="council-card">
+      : councils.map((c) => `
+          <a href="#/council/${
+        encodeURIComponent(c.channelAuthId)
+      }" class="council-card">
             <div class="council-card-header">
               <span class="council-name">${escapeHtml(c.name)}</span>
-              <span class="badge badge-active">${c.channels.length} channel${c.channels.length !== 1 ? "s" : ""}</span>
+              <span class="badge badge-active">${c.channels.length} channel${
+        c.channels.length !== 1 ? "s" : ""
+      }</span>
             </div>
             <div class="council-card-meta">
-              <span>${c.jurisdictions.map(j => escapeHtml(getCountryName(j))).join(", ")}</span>
+              <span>${
+        c.jurisdictions.map((j) => escapeHtml(getCountryName(j))).join(", ")
+      }</span>
             </div>
-            <div class="council-card-id mono">${truncateAddress(c.channelAuthId)}</div>
+            <div class="council-card-id mono">${
+        truncateAddress(c.channelAuthId)
+      }</div>
           </a>
         `).join("");
   }
@@ -66,7 +80,7 @@ export async function mapView(): Promise<HTMLElement> {
     // Extract all path elements
     const pathElements = svgDoc.querySelectorAll("path");
     const pathStrings: string[] = [];
-    pathElements.forEach(p => {
+    pathElements.forEach((p) => {
       const d = p.getAttribute("d");
       if (d) pathStrings.push(d);
     });
@@ -82,7 +96,7 @@ export async function mapView(): Promise<HTMLElement> {
 
         <!-- Land masses -->
         <g fill="#1e2130" stroke="var(--border)" stroke-width="0.3">
-          ${pathStrings.map(d => `<path d="${d}" />`).join("\n          ")}
+          ${pathStrings.map((d) => `<path d="${d}" />`).join("\n          ")}
         </g>
 
         <!-- Council markers -->
@@ -93,7 +107,8 @@ export async function mapView(): Promise<HTMLElement> {
     console.warn("[map] Failed to load world map:", err);
     if (!ctx.cancelled) {
       const mapContainer = main.querySelector(".map-container")!;
-      mapContainer.innerHTML = `<div class="empty-state"><p>Failed to load map. Please try again later.</p></div>`;
+      mapContainer.innerHTML =
+        `<div class="empty-state"><p>Failed to load map. Please try again later.</p></div>`;
     }
   }
 
@@ -112,17 +127,27 @@ function buildCouncilMarkers(councils: CouncilConfig[]): string {
       const r = Math.min(4 + channels * 2, 10);
 
       markers.push(
-        `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r + 6}" fill="var(--primary)" opacity="0.15" />`,
+        `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${
+          r + 6
+        }" fill="var(--primary)" opacity="0.15" />`,
       );
       markers.push(
-        `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r + 2}" fill="none" stroke="var(--primary)" stroke-width="1" opacity="0.5" />`,
+        `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${
+          r + 2
+        }" fill="none" stroke="var(--primary)" stroke-width="1" opacity="0.5" />`,
       );
       markers.push(
-        `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" class="council-dot">` +
-        `<title>${escapeHtml(council.name)} — ${escapeHtml(getCountryName(code))}</title></circle>`,
+        `<circle cx="${pos.x.toFixed(1)}" cy="${
+          pos.y.toFixed(1)
+        }" r="${r}" class="council-dot">` +
+          `<title>${escapeHtml(council.name)} — ${
+            escapeHtml(getCountryName(code))
+          }</title></circle>`,
       );
       markers.push(
-        `<text x="${pos.x.toFixed(1)}" y="${(pos.y - r - 6).toFixed(1)}" class="council-label">${escapeHtml(council.name)}</text>`,
+        `<text x="${pos.x.toFixed(1)}" y="${
+          (pos.y - r - 6).toFixed(1)
+        }" class="council-label">${escapeHtml(council.name)}</text>`,
       );
     }
   }

@@ -1,9 +1,25 @@
 import { assertEquals } from "@std/assert";
-import { queryErrors, clearQueryErrors, countProvidersFromEvents } from "./stellar.ts";
+import {
+  clearQueryErrors,
+  countProvidersFromEvents,
+  queryErrors,
+} from "./stellar.ts";
 import type { ContractEvent } from "./stellar.ts";
 
-function mockEvent(type: string, value: string | null, ledger = 1): ContractEvent {
-  return { id: "e1", type, contractId: "C...", ledger, timestamp: "", topic: [], value };
+function mockEvent(
+  type: string,
+  value: string | null,
+  ledger = 1,
+): ContractEvent {
+  return {
+    id: "e1",
+    type,
+    contractId: "C...",
+    ledger,
+    timestamp: "",
+    topic: [],
+    value,
+  };
 }
 
 Deno.test("queryErrors starts empty", () => {

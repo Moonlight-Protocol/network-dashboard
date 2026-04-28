@@ -2,7 +2,9 @@
  * Bundles src/app.ts into public/app.js for the browser.
  * Uses esbuild via Deno with denoPlugins for import map resolution.
  */
+// deno-lint-ignore no-import-prefix -- build script intentionally pins the URL
 import * as esbuild from "https://deno.land/x/esbuild@v0.20.1/mod.js";
+// deno-lint-ignore no-import-prefix -- build script intentionally pins the version
 import { denoPlugins } from "jsr:@luca/esbuild-deno-loader@0.10";
 
 const isProduction = Deno.args.includes("--production");
@@ -11,7 +13,9 @@ const version = denoJson.version ?? "0.0.0";
 
 async function resolveSorobanCoreVersion(): Promise<string> {
   try {
-    const res = await fetch("https://api.github.com/repos/Moonlight-Protocol/soroban-core/releases/latest");
+    const res = await fetch(
+      "https://api.github.com/repos/Moonlight-Protocol/soroban-core/releases/latest",
+    );
     if (!res.ok) return "unknown";
     const release = await res.json();
     return ((release.tag_name as string) ?? "unknown").replace(/^v/, "");

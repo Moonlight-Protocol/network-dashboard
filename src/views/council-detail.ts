@@ -3,14 +3,29 @@
  */
 import { renderNav } from "../components/nav.ts";
 import { getCouncils } from "../lib/config.ts";
-import { getChannelSupply, getContractEvents, countProvidersFromEvents, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
-import { escapeHtml, truncateAddress, formatAmount, timeAgo, sanitizeUrl } from "../lib/dom.ts";
+import {
+  clearQueryErrors,
+  countProvidersFromEvents,
+  getChannelSupply,
+  getContractEvents,
+  queryErrors,
+} from "../lib/stellar.ts";
+import {
+  escapeHtml,
+  formatAmount,
+  sanitizeUrl,
+  timeAgo,
+  truncateAddress,
+} from "../lib/dom.ts";
 import { getCountryName } from "../lib/world-map.ts";
 import { onCleanup } from "../lib/router.ts";
 import type { CouncilConfig } from "../lib/config.ts";
 import type { ContractEvent } from "../lib/stellar.ts";
 
-export async function councilDetailView(params?: Record<string, string>): Promise<HTMLElement> {
+// deno-lint-ignore require-await -- view fn satisfies router's Promise<HTMLElement> contract
+export async function councilDetailView(
+  params?: Record<string, string>,
+): Promise<HTMLElement> {
   const el = document.createElement("div");
   el.appendChild(renderNav());
 
@@ -28,7 +43,9 @@ export async function councilDetailView(params?: Record<string, string>): Promis
   el.appendChild(main);
 
   const ctx = { cancelled: false };
-  onCleanup(() => { ctx.cancelled = true; });
+  onCleanup(() => {
+    ctx.cancelled = true;
+  });
 
   getCouncils()
     .then((councils) => {
@@ -38,7 +55,9 @@ export async function councilDetailView(params?: Record<string, string>): Promis
       if (!council) {
         main.innerHTML = `
           <h2>Council Not Found</h2>
-          <p class="error-text">No council registered with ID ${escapeHtml(truncateAddress(councilId))}</p>
+          <p class="error-text">No council registered with ID ${
+          escapeHtml(truncateAddress(councilId))
+        }</p>
           <a href="#/councils" class="btn-link">Back to councils</a>
         `;
         return;
@@ -51,8 +70,20 @@ export async function councilDetailView(params?: Record<string, string>): Promis
           <a href="#/councils" class="btn-link">&larr; All Councils</a>
         </div>
         <h2>${escapeHtml(council.name)}</h2>
-        <p class="mono text-muted" style="font-size:0.8rem;margin-bottom:0.5rem">${escapeHtml(council.channelAuthId)}</p>
-        <p class="text-muted">${council.jurisdictions.map((j) => escapeHtml(getCountryName(j))).join(", ")}${safeWebsite ? ` &middot; <a href="${escapeHtml(safeWebsite)}" target="_blank" rel="noopener">${escapeHtml(council.website!)}</a>` : ""}</p>
+        <p class="mono text-muted" style="font-size:0.8rem;margin-bottom:0.5rem">${
+        escapeHtml(council.channelAuthId)
+      }</p>
+        <p class="text-muted">${
+        council.jurisdictions.map((j) => escapeHtml(getCountryName(j))).join(
+          ", ",
+        )
+      }${
+        safeWebsite
+          ? ` &middot; <a href="${
+            escapeHtml(safeWebsite)
+          }" target="_blank" rel="noopener">${escapeHtml(council.website!)}</a>`
+          : ""
+      }</p>
         <div id="council-detail-content"><div class="loading">Loading council data...</div></div>
       `;
 
@@ -70,7 +101,11 @@ export async function councilDetailView(params?: Record<string, string>): Promis
   return el;
 }
 
-async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, ctx: { cancelled: boolean }): Promise<void> {
+async function loadCouncilDetail(
+  main: HTMLElement,
+  council: CouncilConfig,
+  ctx: { cancelled: boolean },
+): Promise<void> {
   clearQueryErrors();
   const channelData: { id: string; asset: string; supply: bigint }[] = [];
   const allEvents: ContractEvent[] = [];
@@ -79,21 +114,25 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, ctx:
 
   for (const ch of council.channels) {
     promises.push(
-      getChannelSupply(ch.privacyChannelId).then(supply => {
-        channelData.push({ id: ch.privacyChannelId, asset: ch.assetCode, supply });
+      getChannelSupply(ch.privacyChannelId).then((supply) => {
+        channelData.push({
+          id: ch.privacyChannelId,
+          asset: ch.assetCode,
+          supply,
+        });
       }),
     );
   }
 
   promises.push(
-    getContractEvents(council.channelAuthId, undefined, 100).then(events => {
+    getContractEvents(council.channelAuthId, undefined, 100).then((events) => {
       allEvents.push(...events);
     }),
   );
 
   for (const ch of council.channels) {
     promises.push(
-      getContractEvents(ch.privacyChannelId, undefined, 100).then(events => {
+      getContractEvents(ch.privacyChannelId, undefined, 100).then((events) => {
         allEvents.push(...events);
       }),
     );
@@ -108,12 +147,14 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, ctx:
   if (!content) return;
 
   const totalSupply = channelData.reduce((sum, c) => sum + c.supply, 0n);
-  const txEvents = allEvents.filter(e =>
-    !["ProviderAdded", "ProviderRemoved", "ContractInitialized"].includes(e.type)
+  const txEvents = allEvents.filter((e) =>
+    !["ProviderAdded", "ProviderRemoved", "ContractInitialized"].includes(
+      e.type,
+    )
   );
 
   // Derive active providers using chronological event processing
-  const authEvents = allEvents.filter(e =>
+  const authEvents = allEvents.filter((e) =>
     e.contractId === council.channelAuthId &&
     (e.type === "ProviderAdded" || e.type === "ProviderRemoved")
   );
@@ -123,7 +164,11 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, ctx:
   const hasErrors = queryErrors.length > 0;
 
   content.innerHTML = `
-    ${hasErrors ? `<div class="error-banner">Some data may be incomplete — network queries failed.</div>` : ""}
+    ${
+    hasErrors
+      ? `<div class="error-banner">Some data may be incomplete — network queries failed.</div>`
+      : ""
+  }
 
     <div class="stats-row">
       <div class="stat-card active">
@@ -154,17 +199,21 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, ctx:
         </tr>
       </thead>
       <tbody>
-        ${channelData.map(ch => `
+        ${
+    channelData.map((ch) => `
           <tr>
             <td class="mono">${truncateAddress(ch.id)}</td>
             <td>${escapeHtml(ch.asset)}</td>
             <td>${formatAmount(ch.supply)}</td>
           </tr>
-        `).join("")}
+        `).join("")
+  }
       </tbody>
     </table>
 
-    ${activeProviders.length > 0 ? `
+    ${
+    activeProviders.length > 0
+      ? `
       <h3>Registered Providers</h3>
       <table>
         <thead>
@@ -173,33 +222,53 @@ async function loadCouncilDetail(main: HTMLElement, council: CouncilConfig, ctx:
           </tr>
         </thead>
         <tbody>
-          ${activeProviders.map(p => `
+          ${
+        activeProviders.map((p) => `
             <tr>
               <td class="mono">${escapeHtml(p)}</td>
             </tr>
-          `).join("")}
+          `).join("")
+      }
         </tbody>
       </table>
-    ` : `
+    `
+      : `
       <h3>Registered Providers</h3>
       <div class="empty-state"><p>No providers discovered from recent on-chain events.</p></div>
-    `}
+    `
+  }
 
     <h3>Recent Activity</h3>
-    ${allEvents.length > 0 ? `
+    ${
+    allEvents.length > 0
+      ? `
       <div class="feed-list">
-        ${allEvents.slice(0, 50).map(e => `
+        ${
+        allEvents.slice(0, 50).map((e) => `
           <div class="feed-item">
             <div class="feed-item-header">
-              <span class="badge ${e.type === "ProviderAdded" ? "badge-active" : e.type === "ProviderRemoved" ? "badge-inactive" : "badge-pending"}">${escapeHtml(e.type)}</span>
-              <span class="text-muted">${e.timestamp ? timeAgo(e.timestamp) : `Ledger ${e.ledger}`}</span>
+              <span class="badge ${
+          e.type === "ProviderAdded"
+            ? "badge-active"
+            : e.type === "ProviderRemoved"
+            ? "badge-inactive"
+            : "badge-pending"
+        }">${escapeHtml(e.type)}</span>
+              <span class="text-muted">${
+          e.timestamp ? timeAgo(e.timestamp) : `Ledger ${e.ledger}`
+        }</span>
             </div>
-            <div class="feed-item-id mono">${truncateAddress(e.contractId)}</div>
+            <div class="feed-item-id mono">${
+          truncateAddress(e.contractId)
+        }</div>
           </div>
-        `).join("")}
+        `).join("")
+      }
       </div>
-    ` : `
+    `
+      : `
       <div class="empty-state"><p>No recent activity found.</p></div>
-    `}
+    `
+  }
   `;
 }

@@ -3,8 +3,14 @@
  */
 import { renderNav } from "../components/nav.ts";
 import { getCouncils } from "../lib/config.ts";
-import { getChannelSupply, getContractEvents, countProvidersFromEvents, queryErrors, clearQueryErrors } from "../lib/stellar.ts";
-import { escapeHtml, truncateAddress, formatAmount } from "../lib/dom.ts";
+import {
+  clearQueryErrors,
+  countProvidersFromEvents,
+  getChannelSupply,
+  getContractEvents,
+  queryErrors,
+} from "../lib/stellar.ts";
+import { escapeHtml, formatAmount, truncateAddress } from "../lib/dom.ts";
 import { getCountryName } from "../lib/world-map.ts";
 import { onCleanup } from "../lib/router.ts";
 
@@ -22,6 +28,7 @@ interface CouncilState {
   loading: boolean;
 }
 
+// deno-lint-ignore require-await -- view fn satisfies router's Promise<HTMLElement> contract
 export async function councilsView(): Promise<HTMLElement> {
   const el = document.createElement("div");
   el.appendChild(renderNav());
@@ -36,19 +43,24 @@ export async function councilsView(): Promise<HTMLElement> {
   el.appendChild(main);
 
   const ctx = { cancelled: false };
-  onCleanup(() => { ctx.cancelled = true; });
+  onCleanup(() => {
+    ctx.cancelled = true;
+  });
 
   loadCouncilData(main, ctx).catch(() => {});
 
   return el;
 }
 
-async function loadCouncilData(main: HTMLElement, ctx: { cancelled: boolean }): Promise<void> {
+async function loadCouncilData(
+  main: HTMLElement,
+  ctx: { cancelled: boolean },
+): Promise<void> {
   clearQueryErrors();
   const councils = await getCouncils();
   if (ctx.cancelled) return;
 
-  const states: CouncilState[] = councils.map(council => ({
+  const states: CouncilState[] = councils.map((council) => ({
     name: council.name,
     channelAuthId: council.channelAuthId,
     jurisdictions: council.jurisdictions,
@@ -63,11 +75,13 @@ async function loadCouncilData(main: HTMLElement, ctx: { cancelled: boolean }): 
   const promises: Promise<void>[] = [];
 
   for (const state of states) {
-    const council = councils.find(c => c.channelAuthId === state.channelAuthId)!;
+    const council = councils.find((c) =>
+      c.channelAuthId === state.channelAuthId
+    )!;
 
     for (const ch of council.channels) {
       promises.push(
-        getChannelSupply(ch.privacyChannelId).then(supply => {
+        getChannelSupply(ch.privacyChannelId).then((supply) => {
           state.channels.push({
             privacyChannelId: ch.privacyChannelId,
             assetCode: ch.assetCode,
@@ -78,7 +92,7 @@ async function loadCouncilData(main: HTMLElement, ctx: { cancelled: boolean }): 
     }
 
     promises.push(
-      getContractEvents(state.channelAuthId).then(events => {
+      getContractEvents(state.channelAuthId).then((events) => {
         state.providerCount = countProvidersFromEvents(events).length;
       }),
     );
@@ -99,19 +113,28 @@ function renderCouncilTable(main: HTMLElement, states: CouncilState[]): void {
   if (!content) return;
 
   if (states.length === 0) {
-    content.innerHTML = `<div class="empty-state"><p>No councils registered yet.</p></div>`;
+    content.innerHTML =
+      `<div class="empty-state"><p>No councils registered yet.</p></div>`;
     return;
   }
 
   const totalChannels = states.reduce((sum, s) => sum + s.channels.length, 0);
   const totalProviders = states.reduce((sum, s) => sum + s.providerCount, 0);
-  const totalSupply = states.reduce((sum, s) =>
-    sum + s.channels.reduce((cs, c) => cs + c.supply, 0n), 0n);
+  const totalSupply = states.reduce(
+    (sum, s) => sum + s.channels.reduce((cs, c) => cs + c.supply, 0n),
+    0n,
+  );
 
   const hasErrors = queryErrors.length > 0;
 
   content.innerHTML = `
-    ${hasErrors ? `<div class="error-banner">Some data may be incomplete — network queries failed. <span class="text-muted">(${queryErrors.length} error${queryErrors.length !== 1 ? "s" : ""})</span></div>` : ""}
+    ${
+    hasErrors
+      ? `<div class="error-banner">Some data may be incomplete — network queries failed. <span class="text-muted">(${queryErrors.length} error${
+        queryErrors.length !== 1 ? "s" : ""
+      })</span></div>`
+      : ""
+  }
 
     <div class="stats-row">
       <div class="stat-card active">
@@ -144,30 +167,42 @@ function renderCouncilTable(main: HTMLElement, states: CouncilState[]): void {
         </tr>
       </thead>
       <tbody>
-        ${states.map(s => {
-          const supply = s.channels.reduce((sum, c) => sum + c.supply, 0n);
-          return `
-            <tr class="clickable-row" data-href="#/council/${encodeURIComponent(s.channelAuthId)}">
+        ${
+    states.map((s) => {
+      const supply = s.channels.reduce((sum, c) => sum + c.supply, 0n);
+      return `
+            <tr class="clickable-row" data-href="#/council/${
+        encodeURIComponent(s.channelAuthId)
+      }">
               <td>
                 <div>${escapeHtml(s.name)}</div>
-                <div class="mono text-muted" style="font-size:0.7rem">${truncateAddress(s.channelAuthId)}</div>
+                <div class="mono text-muted" style="font-size:0.7rem">${
+        truncateAddress(s.channelAuthId)
+      }</div>
               </td>
-              <td>${s.jurisdictions.map(j => escapeHtml(getCountryName(j))).join(", ")}</td>
+              <td>${
+        s.jurisdictions.map((j) => escapeHtml(getCountryName(j))).join(", ")
+      }</td>
               <td>${s.channels.length}</td>
-              <td>${s.loading ? '<span class="text-muted">...</span>' : s.providerCount}</td>
-              <td>${s.loading ? '<span class="text-muted">...</span>' : formatAmount(supply)}</td>
+              <td>${
+        s.loading ? '<span class="text-muted">...</span>' : s.providerCount
+      }</td>
+              <td>${
+        s.loading ? '<span class="text-muted">...</span>' : formatAmount(supply)
+      }</td>
               <td><span class="badge badge-active">Active</span></td>
             </tr>
           `;
-        }).join("")}
+    }).join("")
+  }
       </tbody>
     </table>
   `;
 
-  content.querySelectorAll(".clickable-row").forEach(row => {
+  content.querySelectorAll(".clickable-row").forEach((row) => {
     row.addEventListener("click", () => {
       const href = row.getAttribute("data-href");
-      if (href) window.location.hash = href;
+      if (href) globalThis.location.hash = href;
     });
   });
 }
