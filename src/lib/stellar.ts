@@ -65,7 +65,7 @@ interface StellarSdkSubset {
   ) => TxBuilder;
   scValToNative(val: unknown): unknown;
   rpc: {
-    Server: new (url: string) => RpcServer;
+    Server: new (url: string, opts?: { allowHttp?: boolean }) => RpcServer;
   };
 }
 
@@ -94,6 +94,12 @@ interface SimulationResult {
 interface RpcServer {
   simulateTransaction(tx: StellarTransaction): Promise<SimulationResult>;
   getLatestLedger(): Promise<{ sequence: number }>;
+  getHealth(): Promise<{
+    status: string;
+    latestLedger: number;
+    oldestLedger: number;
+    ledgerRetentionWindow: number;
+  }>;
   getEvents(opts: EventsRequest): Promise<EventsResponse>;
 }
 
@@ -136,7 +142,9 @@ async function sdk(): Promise<StellarSdkSubset> {
 
 async function getRpcServer(): Promise<RpcServer> {
   const s = await sdk();
-  return new s.rpc.Server(RPC_URL);
+  return new s.rpc.Server(RPC_URL, {
+    allowHttp: RPC_URL.startsWith("http://"),
+  });
 }
 
 // --- Public API ---
@@ -218,16 +226,20 @@ export async function getContractEvents(
     const server = await getRpcServer();
     const s = await sdk();
 
-    const latestLedger = await withTimeout(
-      server.getLatestLedger(),
+    const health = await withTimeout(
+      server.getHealth(),
       REQUEST_TIMEOUT_MS,
-      "getLatestLedger",
+      "getHealth",
     );
-    const seq = latestLedger?.sequence;
+    const seq = health?.latestLedger;
+    const oldest = health?.oldestLedger;
     if (typeof seq !== "number" || !isFinite(seq) || seq <= 0) {
       throw new Error("Invalid latest ledger sequence");
     }
-    const start = startLedger ?? Math.max(1, seq - 17280);
+    if (typeof oldest !== "number" || !isFinite(oldest) || oldest <= 0) {
+      throw new Error("Invalid oldest ledger sequence");
+    }
+    const start = startLedger ?? Math.max(oldest, seq - 17280);
 
     const response = await withTimeout(
       server.getEvents({
@@ -240,9 +252,13 @@ export async function getContractEvents(
     );
 
     return (response.events ?? []).map((e: RawEvent) => ({
-      id: e.id,
+      id: typeof e.id === "string" ? e.id : String(e.id ?? ""),
       type: parseEventType(e, s),
-      contractId: e.contractId ?? contractId,
+      // SDK v15 may return contractId as an Address object — coerce to string
+      // so downstream string ops (truncateAddress, etc.) work.
+      contractId: typeof e.contractId === "string"
+        ? e.contractId
+        : (e.contractId != null ? String(e.contractId) : contractId),
       ledger: e.ledger,
       timestamp: e.createdAt,
       topic: e.topic?.map((t: unknown) => safeScValToNative(s, t)) ?? [],
