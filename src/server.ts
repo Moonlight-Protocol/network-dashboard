@@ -17,14 +17,24 @@ const SECURITY_HEADERS: Record<string, string> = {
 
 function getCSP(): string {
   const environment = Deno.env.get("ENVIRONMENT") || "development";
-  const devSources = environment !== "production"
-    ? " https://api.github.com"
-    : "";
+  const isProd = environment === "production";
+  // Non-prod runs against local services (council-platform, soroban-rpc,
+  // friendbot, etc. on assorted localhost ports) — use `*` so dev work
+  // isn't blocked by CSP. Production keeps the strict allow-list.
+  const connectSrc = isProd
+    ? "connect-src 'self' https://soroban-testnet.stellar.org https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/"
+    : "connect-src *";
+  // The council-detail view renders inline `style="..."` attributes (progress
+  // bars, stat colours), which `style-src 'self'` rejects. Production keeps
+  // the strict policy; dev allows inline styles so the UI actually renders.
+  const styleSrc = isProd
+    ? "style-src 'self'"
+    : "style-src 'self' 'unsafe-inline'";
   return [
     "default-src 'self'",
     "script-src 'self'",
-    "style-src 'self'",
-    `connect-src 'self' https://soroban-testnet.stellar.org https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/${devSources}`,
+    styleSrc,
+    connectSrc,
   ].join("; ");
 }
 
