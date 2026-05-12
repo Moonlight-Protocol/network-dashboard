@@ -6,6 +6,7 @@
     "jsr:@std/assert@~0.213.1": "0.213.1",
     "jsr:@std/encoding@0.213": "0.213.1",
     "jsr:@std/internal@^1.0.12": "1.0.13",
+    "jsr:@std/json@~0.213.1": "0.213.1",
     "jsr:@std/jsonc@0.213": "0.213.1",
     "jsr:@std/path@0.213": "0.213.1",
     "jsr:@std/path@1": "1.1.4",
@@ -35,10 +36,14 @@
     "@std/internal@1.0.13": {
       "integrity": "2f9546691d4ac2d32859c82dff284aaeac980ddeca38430d07941e7e288725c0"
     },
+    "@std/json@0.213.1": {
+      "integrity": "f572b1de605d07c4a5602445dac54bfc51b1fb87a3710a17aed2608bfca54e68"
+    },
     "@std/jsonc@0.213.1": {
       "integrity": "5578f21aa583b7eb7317eed077ffcde47b294f1056bdbb9aacec407758637bfe",
       "dependencies": [
-        "jsr:@std/assert@~0.213.1"
+        "jsr:@std/assert@~0.213.1",
+        "jsr:@std/json"
       ]
     },
     "@std/path@0.213.1": {
@@ -382,7 +387,8 @@
     "https://deno.land/x/denoflate@1.2.1/mod.ts": "f5628e44b80b3d80ed525afa2ba0f12408e3849db817d47a883b801f9ce69dd6",
     "https://deno.land/x/denoflate@1.2.1/pkg/denoflate.js": "b9f9ad9457d3f12f28b1fb35c555f57443427f74decb403113d67364e4f2caf4",
     "https://deno.land/x/denoflate@1.2.1/pkg/denoflate_bg.wasm.js": "d581956245407a2115a3d7e8d85a9641c032940a8e810acbd59ca86afd34d44d",
-    "https://deno.land/x/esbuild@v0.20.1/mod.js": "d50e500b53ce67e31116beba3916b0f9275c0e1cc20bc5cadc0fc1b7a3b06fd9"
+    "https://deno.land/x/esbuild@v0.20.1/mod.js": "d50e500b53ce67e31116beba3916b0f9275c0e1cc20bc5cadc0fc1b7a3b06fd9",
+    "https://raw.githubusercontent.com/Moonlight-Protocol/ui/v0.3.1/src/nav/mod.ts": "4bce92a8e347e12953f2fc7e4329e0b58e3dcb8d1c872054e2d30beeba4373e0"
   },
   "workspace": {
     "dependencies": [
