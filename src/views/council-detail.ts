@@ -1,7 +1,7 @@
 /**
  * Council detail view — drill into a council's channels, PPs, and activity.
  */
-import { renderNav } from "../components/nav.ts";
+import { getNav } from "../lib/nav.ts";
 import { getCouncils } from "../lib/config.ts";
 import {
   clearQueryErrors,
@@ -27,7 +27,7 @@ export async function councilDetailView(
   params?: Record<string, string>,
 ): Promise<HTMLElement> {
   const el = document.createElement("div");
-  el.appendChild(renderNav());
+  el.appendChild(getNav());
 
   const main = document.createElement("main");
   main.className = "container";

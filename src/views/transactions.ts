@@ -1,7 +1,7 @@
 /**
  * Transaction feed — recent transactions across all channels.
  */
-import { renderNav } from "../components/nav.ts";
+import { getNav } from "../lib/nav.ts";
 import { getCouncils } from "../lib/config.ts";
 import {
   clearQueryErrors,
@@ -22,7 +22,7 @@ interface FeedEntry {
 // deno-lint-ignore require-await -- view fn satisfies router's Promise<HTMLElement> contract
 export async function transactionsView(): Promise<HTMLElement> {
   const el = document.createElement("div");
-  el.appendChild(renderNav());
+  el.appendChild(getNav());
 
   const main = document.createElement("main");
   main.className = "container";
