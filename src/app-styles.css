@@ -1,0 +1,179 @@
+/*
+ * App-specific styles for network-dashboard.
+ *
+ * Tokens + base-styles + nav now come from @moonlight/ui at the pinned
+ * tag — fetched and concatenated into public/styles.css by src/build.ts.
+ * This file contains ONLY selectors the lib does not ship.
+ * (network-dashboard does not consume the lib's stepper or invite-waitlist.)
+ */
+
+/* Nav-brand hover (lib's nav.css doesn't ship this variant) */
+.nav-brand:hover {
+  opacity: 0.9;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+th, td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Utility */
+.text-muted {
+  color: var(--text-muted);
+}
+
+/* Loading + clickable row */
+.loading {
+  color: var(--text-muted);
+  padding: 2rem 0;
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.clickable-row:hover {
+  background: var(--surface);
+}
+
+/* Map */
+.map-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0 2rem;
+  overflow: hidden;
+}
+
+.world-map {
+  width: 100%;
+  height: auto;
+}
+
+.council-dot {
+  fill: var(--primary);
+  opacity: 0.8;
+  cursor: pointer;
+  transition: opacity 0.15s, r 0.15s;
+}
+
+.council-dot:hover {
+  opacity: 1;
+  fill: var(--primary-hover);
+}
+
+.council-label {
+  fill: var(--text-muted);
+  font-size: 10px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* Council grid */
+.council-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.council-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+
+.council-card:hover {
+  border-color: var(--primary);
+}
+
+.council-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.council-name {
+  font-weight: 600;
+}
+
+.council-card-meta {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.council-card-id {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Transaction feed */
+.feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.feed-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.feed-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.feed-event-type {
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.feed-item-details {
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.feed-item-id {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Error banner */
+.error-banner {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--inactive);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: var(--inactive);
+  margin-bottom: 1rem;
+}

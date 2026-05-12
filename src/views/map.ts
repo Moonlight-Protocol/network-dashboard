@@ -2,7 +2,7 @@
  * Map view — world map with councils plotted by jurisdiction.
  * Uses a static SVG map (simple-world-map, CC BY-SA 3.0).
  */
-import { renderNav } from "../components/nav.ts";
+import { getNav } from "../lib/nav.ts";
 import { type CouncilConfig, getCouncils } from "../lib/config.ts";
 import {
   fetchWorldSvg,
@@ -14,7 +14,7 @@ import { onCleanup } from "../lib/router.ts";
 
 export async function mapView(): Promise<HTMLElement> {
   const el = document.createElement("div");
-  el.appendChild(renderNav());
+  el.appendChild(getNav());
 
   const main = document.createElement("main");
   main.className = "container";

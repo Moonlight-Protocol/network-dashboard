@@ -1,7 +1,7 @@
 /**
  * Council list view — all registered councils with on-chain state.
  */
-import { renderNav } from "../components/nav.ts";
+import { getNav } from "../lib/nav.ts";
 import { getCouncils } from "../lib/config.ts";
 import {
   clearQueryErrors,
@@ -31,7 +31,7 @@ interface CouncilState {
 // deno-lint-ignore require-await -- view fn satisfies router's Promise<HTMLElement> contract
 export async function councilsView(): Promise<HTMLElement> {
   const el = document.createElement("div");
-  el.appendChild(renderNav());
+  el.appendChild(getNav());
 
   const main = document.createElement("main");
   main.className = "container";
