@@ -18,6 +18,12 @@ const UI_LIB_CSS_FILES = [
   "nav/nav.css",
 ];
 
+async function writeHealthJson(version: string): Promise<void> {
+  const health = { status: "ok", service: "network-dashboard", version };
+  await Deno.writeTextFile("public/health.json", JSON.stringify(health) + "\n");
+  console.log(`Built public/health.json (network-dashboard ${version})`);
+}
+
 async function buildStyles(): Promise<void> {
   const parts: string[] = [];
   for (const path of UI_LIB_CSS_FILES) {
@@ -43,6 +49,8 @@ async function buildStyles(): Promise<void> {
 const isProduction = Deno.args.includes("--production");
 const denoJson = JSON.parse(await Deno.readTextFile("deno.json"));
 const version = denoJson.version ?? "0.0.0";
+
+await writeHealthJson(version);
 
 await buildStyles();
 
