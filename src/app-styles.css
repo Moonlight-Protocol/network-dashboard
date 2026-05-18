@@ -111,6 +111,13 @@ body {
   fill: #1f5e2c;
 }
 
+.topology-jurisdictions {
+  font-size: 10px;
+  fill: #495057;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
 .topology-pulse {
   opacity: 0.95;
   animation: pulse-fade 1s ease-out forwards;
@@ -213,6 +220,12 @@ body {
   background: #d0ebff;
   border-color: #1c7ed6;
   color: #0c4a89;
+}
+
+.activity-card--channel_bundle {
+  background: #c5f6fa;
+  border-color: #15aabf;
+  color: #0b525e;
 }
 
 .activity-card-row {

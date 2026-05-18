@@ -17,6 +17,7 @@ const KIND_GLYPH: Record<NetworkEventKind, string> = {
   asset_registered: "+",
   channel_deposit: "↙",
   channel_settlement: "↗",
+  channel_bundle: "•",
 };
 
 const KIND_TITLE: Record<NetworkEventKind, string> = {
@@ -26,6 +27,7 @@ const KIND_TITLE: Record<NetworkEventKind, string> = {
   asset_registered: "New asset",
   channel_deposit: "Deposit",
   channel_settlement: "Settlement",
+  channel_bundle: "Bundle",
 };
 
 function detailFor(event: NetworkEvent): string {
@@ -44,6 +46,10 @@ function detailFor(event: NetworkEvent): string {
     case "asset_registered":
       return typeof p.assetContractId === "string"
         ? truncateAddress(p.assetContractId)
+        : "";
+    case "channel_bundle":
+      return typeof p.providerPublicKey === "string"
+        ? `via ${truncateAddress(p.providerPublicKey)}`
         : "";
   }
 }

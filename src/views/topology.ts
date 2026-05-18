@@ -37,6 +37,7 @@ const KIND_PULSE_COLOR: Record<string, string> = {
   asset_registered: "#f59f00", // amber
   channel_deposit: "#e8590c", // orange
   channel_settlement: "#1c7ed6", // blue
+  channel_bundle: "#15aabf", // teal
 };
 
 const DEFAULT_PULSE_COLOR = "#f03e3e"; // red
@@ -121,6 +122,20 @@ export class Topology {
       node.setAttribute("fill", "#d3f9d8");
       node.setAttribute("stroke", "#2f9e44");
       node.setAttribute("stroke-width", "2");
+      // Native SVG tooltip on hover — full public council info.
+      const tooltip = document.createElementNS(SVG_NS, "title");
+      const ppList = council.providers
+        .map((p) => `  ${p.label ?? "(unlabelled)"} — ${p.publicKey}`)
+        .join("\n");
+      const jurList = council.jurisdictions.length
+        ? council.jurisdictions.join(", ")
+        : "(none declared)";
+      tooltip.textContent = `${council.name ?? "Council"}
+Council ID: ${council.id}
+Jurisdictions: ${jurList}
+Providers (${council.providers.length}):
+${ppList || "  (none)"}`;
+      node.appendChild(tooltip);
       this.nodesLayer.appendChild(node);
 
       const label = document.createElementNS(SVG_NS, "text");
@@ -130,6 +145,17 @@ export class Topology {
       label.classList.add("topology-label-council");
       label.textContent = council.name ?? "Council";
       this.nodesLayer.appendChild(label);
+
+      // Jurisdiction badges below the name.
+      if (council.jurisdictions.length > 0) {
+        const juris = document.createElementNS(SVG_NS, "text");
+        juris.setAttribute("x", `${cx}`);
+        juris.setAttribute("y", `${cy + r + 30}`);
+        juris.setAttribute("text-anchor", "middle");
+        juris.classList.add("topology-jurisdictions");
+        juris.textContent = council.jurisdictions.join(" · ");
+        this.nodesLayer.appendChild(juris);
+      }
 
       const ppCountLabel = document.createElementNS(SVG_NS, "text");
       ppCountLabel.setAttribute("x", `${cx}`);
@@ -162,6 +188,11 @@ export class Topology {
         ppNode.setAttribute("fill", "#ffe8cc");
         ppNode.setAttribute("stroke", "#e8590c");
         ppNode.setAttribute("stroke-width", "2");
+        const ppTip = document.createElementNS(SVG_NS, "title");
+        ppTip.textContent = `${pp.label ?? "(unlabelled PP)"}
+${pp.publicKey}
+on ${council.name ?? "Council"}`;
+        ppNode.appendChild(ppTip);
         this.nodesLayer.appendChild(ppNode);
 
         this.layout.pps.set(pp.publicKey, {
