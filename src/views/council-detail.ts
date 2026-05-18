@@ -17,7 +17,7 @@ import {
   timeAgo,
   truncateAddress,
 } from "../lib/dom.ts";
-import { getCountryName } from "../lib/world-map.ts";
+import { getCountryName } from "../lib/country-names.ts";
 import { onCleanup } from "../lib/router.ts";
 import type { CouncilConfig } from "../lib/config.ts";
 import type { ContractEvent } from "../lib/stellar.ts";

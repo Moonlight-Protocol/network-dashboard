@@ -11,7 +11,7 @@ import {
   queryErrors,
 } from "../lib/stellar.ts";
 import { escapeHtml, formatAmount, truncateAddress } from "../lib/dom.ts";
-import { getCountryName } from "../lib/world-map.ts";
+import { getCountryName } from "../lib/country-names.ts";
 import { onCleanup } from "../lib/router.ts";
 
 interface CouncilState {

@@ -12,7 +12,7 @@ export function getNav(): HTMLElement {
     brand: "Moonlight Network",
     version: __APP_VERSION__,
     links: [
-      { href: "#/map", label: "Map" },
+      { href: "#/", label: "Dashboard" },
       { href: "#/councils", label: "Councils" },
       { href: "#/transactions", label: "Transactions" },
     ],

@@ -52,38 +52,126 @@ th {
   background: var(--surface);
 }
 
-/* Map */
-.map-container {
+/* Network Dashboard scaffold (v1: right-rail activity feed only) */
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.dashboard-stage {
+  min-height: 630px;
+}
+
+.dashboard-placeholder {
+  padding: 2rem 0;
+}
+
+.activity-feed {
+  width: 280px;
+  height: 630px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 1rem;
-  margin: 1rem 0 2rem;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   overflow: hidden;
 }
 
-.world-map {
-  width: 100%;
-  height: auto;
+.activity-feed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.council-dot {
-  fill: var(--primary);
-  opacity: 0.8;
-  cursor: pointer;
-  transition: opacity 0.15s, r 0.15s;
+.activity-feed-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: 0.02em;
 }
 
-.council-dot:hover {
-  opacity: 1;
-  fill: var(--primary-hover);
+.activity-feed-status {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-.council-label {
-  fill: var(--text-muted);
-  font-size: 10px;
-  text-anchor: middle;
-  pointer-events: none;
+.activity-feed-status[data-status="open"] {
+  color: #2f9e44;
+}
+
+.activity-feed-status[data-status="closed"] {
+  color: var(--text-muted);
+}
+
+.activity-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.activity-card {
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid transparent;
+  animation: activity-fade 9s ease forwards;
+}
+
+.activity-card--provider_added {
+  background: #d3f9d8;
+  border-color: #2f9e44;
+  color: #1f5e2c;
+}
+
+.activity-card-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.activity-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.activity-title {
+  letter-spacing: 0.01em;
+}
+
+.activity-council {
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+}
+
+.activity-detail {
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  opacity: 0.75;
+}
+
+.activity-card--leaving {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+@keyframes activity-fade {
+  0%, 88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* Council grid */
