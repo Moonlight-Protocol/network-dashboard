@@ -1,6 +1,6 @@
+// Default development config — local-dev's infra-up.sh and the production
+// deploy.yml regenerate this file with environment-specific values.
 globalThis.__DASHBOARD_CONFIG__ = {
   environment: "development",
-  stellarNetwork: "testnet",
-  rpcUrl: "https://soroban-testnet.stellar.org",
-  councilPlatformUrl: "http://localhost:3115",
+  networkDashboardPlatformUrl: "http://localhost:8080",
 };

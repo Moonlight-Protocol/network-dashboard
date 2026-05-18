@@ -8,9 +8,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      COUNCIL_PLATFORM_URL: "${{ secrets.COUNCIL_PLATFORM_URL }}"
-      STELLAR_NETWORK: "${{ secrets.STELLAR_NETWORK }}"
-      RPC_URL: "${{ secrets.RPC_URL }}"
+      NETWORK_DASHBOARD_PLATFORM_URL: "${{ secrets.NETWORK_DASHBOARD_PLATFORM_URL }}"
     steps:
       - uses: actions/checkout@v4
 
@@ -21,32 +19,21 @@ jobs:
       - name: Validate testnet config inputs
         run: |
           set -euo pipefail
-          for var in COUNCIL_PLATFORM_URL STELLAR_NETWORK RPC_URL; do
-            if [ -z "${!var}" ]; then
-              echo "::error::Required env var $var is empty"
-              exit 1
-            fi
-          done
-          case "$STELLAR_NETWORK" in
-            testnet|mainnet) ;;
-            *) echo "::error::STELLAR_NETWORK must be 'testnet' or 'mainnet' (got: $STELLAR_NETWORK)"; exit 1 ;;
+          if [ -z "$NETWORK_DASHBOARD_PLATFORM_URL" ]; then
+            echo "::error::NETWORK_DASHBOARD_PLATFORM_URL is empty"
+            exit 1
+          fi
+          case "$NETWORK_DASHBOARD_PLATFORM_URL" in
+            https://*) ;;
+            *) echo "::error::NETWORK_DASHBOARD_PLATFORM_URL must start with https:// (got: $NETWORK_DASHBOARD_PLATFORM_URL)"; exit 1 ;;
           esac
-          for var in COUNCIL_PLATFORM_URL RPC_URL; do
-            val="${!var}"
-            case "$val" in
-              https://*) ;;
-              *) echo "::error::$var must start with https:// (got: $val)"; exit 1 ;;
-            esac
-          done
 
       - name: Generate production config
         run: |
           deno eval "
             const config = {
               environment: 'production',
-              stellarNetwork: Deno.env.get('STELLAR_NETWORK'),
-              rpcUrl: Deno.env.get('RPC_URL'),
-              councilPlatformUrl: Deno.env.get('COUNCIL_PLATFORM_URL'),
+              networkDashboardPlatformUrl: Deno.env.get('NETWORK_DASHBOARD_PLATFORM_URL'),
             };
             Deno.writeTextFileSync('public/config.js',
               'window.__DASHBOARD_CONFIG__ = ' + JSON.stringify(config, null, 2) + ';\n');
@@ -72,9 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: mainnet
     env:
-      COUNCIL_PLATFORM_URL: "${{ secrets.MAINNET_COUNCIL_PLATFORM_URL }}"
-      STELLAR_NETWORK: "${{ secrets.MAINNET_STELLAR_NETWORK }}"
-      RPC_URL: "${{ secrets.MAINNET_RPC_URL }}"
+      NETWORK_DASHBOARD_PLATFORM_URL: "${{ secrets.MAINNET_NETWORK_DASHBOARD_PLATFORM_URL }}"
     steps:
       - uses: actions/checkout@v4
 
@@ -85,32 +70,21 @@ jobs:
       - name: Validate mainnet config inputs
         run: |
           set -euo pipefail
-          for var in COUNCIL_PLATFORM_URL STELLAR_NETWORK RPC_URL; do
-            if [ -z "${!var}" ]; then
-              echo "::error::Required env var $var is empty"
-              exit 1
-            fi
-          done
-          case "$STELLAR_NETWORK" in
-            testnet|mainnet) ;;
-            *) echo "::error::STELLAR_NETWORK must be 'testnet' or 'mainnet' (got: $STELLAR_NETWORK)"; exit 1 ;;
+          if [ -z "$NETWORK_DASHBOARD_PLATFORM_URL" ]; then
+            echo "::error::MAINNET_NETWORK_DASHBOARD_PLATFORM_URL is empty"
+            exit 1
+          fi
+          case "$NETWORK_DASHBOARD_PLATFORM_URL" in
+            https://*) ;;
+            *) echo "::error::MAINNET_NETWORK_DASHBOARD_PLATFORM_URL must start with https:// (got: $NETWORK_DASHBOARD_PLATFORM_URL)"; exit 1 ;;
           esac
-          for var in COUNCIL_PLATFORM_URL RPC_URL; do
-            val="${!var}"
-            case "$val" in
-              https://*) ;;
-              *) echo "::error::$var must start with https:// (got: $val)"; exit 1 ;;
-            esac
-          done
 
       - name: Generate mainnet config
         run: |
           deno eval "
             const config = {
               environment: 'production',
-              stellarNetwork: Deno.env.get('STELLAR_NETWORK'),
-              rpcUrl: Deno.env.get('RPC_URL'),
-              councilPlatformUrl: Deno.env.get('COUNCIL_PLATFORM_URL'),
+              networkDashboardPlatformUrl: Deno.env.get('NETWORK_DASHBOARD_PLATFORM_URL'),
             };
             Deno.writeTextFileSync('public/config.js',
               'window.__DASHBOARD_CONFIG__ = ' + JSON.stringify(config, null, 2) + ';\n');

@@ -1,34 +1,69 @@
-import { navigate, route, startRouter } from "./lib/router.ts";
-import { mapView } from "./views/map.ts";
-import { councilsView } from "./views/councils.ts";
-import { councilDetailView } from "./views/council-detail.ts";
-import { transactionsView } from "./views/transactions.ts";
+/**
+ * Network-dashboard SPA entry. Single page, no router, no auth.
+ *
+ * Renders the 3-zone layout per the locked design sketch and pipes
+ * frames from the public WebSocket to the right zone.
+ */
+import { NETWORK_DASHBOARD_PLATFORM_URL } from "./lib/config.ts";
+import { connectNetworkPlatform } from "./lib/ws-client.ts";
+import { CounterStrip } from "./views/counter-strip.ts";
+import { Topology } from "./views/topology.ts";
+import { ActivityFeed } from "./views/activity-feed.ts";
 
-route("/map", mapView);
-route("/councils", councilsView);
-route("/council/:id", councilDetailView);
-route("/transactions", transactionsView);
+declare const __APP_VERSION__: string;
 
-route("/", () => {
-  navigate("/map");
-  return document.createElement("div");
-});
+function renderShell(): {
+  layout: HTMLElement;
+  counters: CounterStrip;
+  topology: Topology;
+  feed: ActivityFeed;
+} {
+  const app = document.getElementById("app");
+  if (!app) throw new Error("#app root not found");
+  app.textContent = "";
 
-route("/404", () => {
-  const el = document.createElement("div");
-  el.className = "login-container";
-  el.innerHTML =
-    `<div class="login-card"><h1>404</h1><p>Page not found.</p><a href="#/map">Back to dashboard</a></div>`;
-  return el;
-});
+  const layout = document.createElement("div");
+  layout.className = "dashboard";
 
-startRouter();
+  const counters = new CounterStrip();
+  const topology = new Topology();
+  const feed = new ActivityFeed();
 
-// Dev-mode version check — __DEV_MODE__ is false in production, esbuild removes the block
-import { checkVersions } from "./lib/version-check.ts";
-declare const __DEV_MODE__: boolean;
-if (__DEV_MODE__) {
-  checkVersions().then((banner) => {
-    if (banner) document.body.prepend(banner);
+  layout.append(counters.element(), topology.element(), feed.element());
+
+  const footer = document.createElement("footer");
+  footer.className = "dashboard-footer";
+  footer.textContent = `Moonlight Network Dashboard · v${__APP_VERSION__}`;
+  layout.appendChild(footer);
+
+  app.appendChild(layout);
+  return { layout, counters, topology, feed };
+}
+
+function bootstrap() {
+  const { counters, topology, feed } = renderShell();
+
+  if (!NETWORK_DASHBOARD_PLATFORM_URL) {
+    feed.setStatus("closed");
+    return;
+  }
+
+  connectNetworkPlatform(NETWORK_DASHBOARD_PLATFORM_URL, {
+    onStatusChange: (status) => feed.setStatus(status),
+    onSnapshot: (frame) => {
+      counters.render(frame.counters);
+      topology.render(frame.topology);
+      feed.seed(frame.recent);
+    },
+    onEvent: (event) => {
+      // Live counter bump: events/24h is the only counter that ticks on
+      // every event (the others are derived from topology + are updated by
+      // the next snapshot tick at the hourly re-sync).
+      // We optimistically increment here for ticker-tape feel.
+      feed.append(event);
+      topology.pulse(event);
+    },
   });
 }
+
+bootstrap();

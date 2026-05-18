@@ -15,7 +15,6 @@ const UI_LIB_TAG = "v0.3.1";
 const UI_LIB_CSS_FILES = [
   "tokens/tokens.css",
   "base-styles/base-styles.css",
-  "nav/nav.css",
 ];
 
 async function writeHealthJson(version: string): Promise<void> {
@@ -54,22 +53,6 @@ await writeHealthJson(version);
 
 await buildStyles();
 
-async function resolveSorobanCoreVersion(): Promise<string> {
-  try {
-    const res = await fetch(
-      "https://api.github.com/repos/Moonlight-Protocol/soroban-core/releases/latest",
-    );
-    if (!res.ok) return "unknown";
-    const release = await res.json();
-    return ((release.tag_name as string) ?? "unknown").replace(/^v/, "");
-  } catch {
-    return "unknown";
-  }
-}
-
-const sorobanCoreVersion = await resolveSorobanCoreVersion();
-console.log(`Resolved soroban-core version: ${sorobanCoreVersion}`);
-
 await esbuild.build({
   entryPoints: ["src/app.ts"],
   bundle: true,
@@ -81,7 +64,6 @@ await esbuild.build({
   sourcemap: !isProduction,
   define: {
     "__APP_VERSION__": JSON.stringify(version),
-    "__SOROBAN_CORE_VERSION__": JSON.stringify(sorobanCoreVersion),
     "__DEV_MODE__": JSON.stringify(!isProduction),
   },
   plugins: [...denoPlugins({ configPath: `${Deno.cwd()}/deno.json` })],

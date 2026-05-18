@@ -1,179 +1,269 @@
 /*
- * App-specific styles for network-dashboard.
+ * Network Dashboard — v1 styles.
  *
- * Tokens + base-styles + nav now come from @moonlight/ui at the pinned
- * tag — fetched and concatenated into public/styles.css by src/build.ts.
- * This file contains ONLY selectors the lib does not ship.
- * (network-dashboard does not consume the lib's stepper or invite-waitlist.)
+ * Tokens + base-styles ship from @moonlight/ui at build time (see
+ * src/build.ts). This file holds the 3-zone layout + zone-specific
+ * selectors that aren't part of the shared lib.
  */
 
-/* Nav-brand hover (lib's nav.css doesn't ship this variant) */
-.nav-brand:hover {
-  opacity: 0.9;
+body {
+  margin: 0;
+  font-family: var(--font-family, system-ui, sans-serif);
+  color: var(--text, #1a1a1a);
+  background: var(--bg, #f8f9fa);
 }
 
-/* Tables */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1rem 0;
+#app {
+  min-height: 100vh;
 }
 
-th, td {
-  padding: 0.75rem 1rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-}
+/* ── overall dashboard layout ─────────────────────────────────────── */
 
-th {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* Utility */
-.text-muted {
-  color: var(--text-muted);
-}
-
-/* Loading + clickable row */
-.loading {
-  color: var(--text-muted);
-  padding: 2rem 0;
-}
-
-.clickable-row {
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.clickable-row:hover {
-  background: var(--surface);
-}
-
-/* Map */
-.map-container {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-  margin: 1rem 0 2rem;
-  overflow: hidden;
-}
-
-.world-map {
-  width: 100%;
-  height: auto;
-}
-
-.council-dot {
-  fill: var(--primary);
-  opacity: 0.8;
-  cursor: pointer;
-  transition: opacity 0.15s, r 0.15s;
-}
-
-.council-dot:hover {
-  opacity: 1;
-  fill: var(--primary-hover);
-}
-
-.council-label {
-  fill: var(--text-muted);
-  font-size: 10px;
-  text-anchor: middle;
-  pointer-events: none;
-}
-
-/* Council grid */
-.council-grid {
+.dashboard {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: 1fr 300px;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "counters counters"
+    "topology feed"
+    "footer footer";
   gap: 1rem;
-  margin-top: 1rem;
+  padding: 1.5rem;
+  max-width: 1440px;
+  margin: 0 auto;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 
-.council-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+.zone {
+  border: 1px solid #333;
   border-radius: 8px;
-  padding: 1.25rem;
-  text-decoration: none;
-  color: var(--text);
-  transition: border-color 0.15s;
+  background: #fff;
 }
 
-.council-card:hover {
-  border-color: var(--primary);
+/* ── Zone 1: counter strip ────────────────────────────────────────── */
+
+.counter-strip {
+  grid-area: counters;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+  background: transparent;
+  border: none;
 }
 
-.council-card-header {
+.counter-cell {
+  border: 2px solid #1971c2;
+  background: #e7f5ff;
+  border-radius: 8px;
+  padding: 1.25rem 1rem;
+  text-align: center;
+}
+
+.counter-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1971c2;
+  line-height: 1.1;
+}
+
+.counter-label {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #495057;
+}
+
+/* ── Zone 2: topology ─────────────────────────────────────────────── */
+
+.topology {
+  grid-area: topology;
+  padding: 1rem;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  justify-content: center;
+  min-height: 600px;
 }
 
-.council-name {
+.topology-svg {
+  width: 100%;
+  height: 100%;
+  max-height: 660px;
+}
+
+.topology-label-center {
+  font-weight: 700;
+  font-size: 14px;
+  fill: #212529;
+  letter-spacing: 0.08em;
+}
+
+.topology-label-council {
+  font-size: 12px;
+  fill: #1f5e2c;
   font-weight: 600;
 }
 
-.council-card-meta {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  margin-bottom: 0.25rem;
+.topology-pp-count {
+  font-size: 10px;
+  fill: #1f5e2c;
 }
 
-.council-card-id {
-  font-size: 0.7rem;
-  color: var(--text-muted);
+.topology-pulse {
+  opacity: 0.95;
+  animation: pulse-fade 1s ease-out forwards;
 }
 
-/* Transaction feed */
-.feed-list {
+@keyframes pulse-fade {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.6);
+    transform-origin: center;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.8);
+    transform-origin: center;
+  }
+}
+
+/* ── Zone 3: activity feed ────────────────────────────────────────── */
+
+.activity-feed {
+  grid-area: feed;
+  width: 280px;
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-top: 1rem;
+  overflow: hidden;
 }
 
-.feed-item {
-  background: var(--surface);
-  border: 1px solid var(--border);
+.activity-feed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.activity-feed-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.activity-feed-status {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #868e96;
+}
+
+.activity-feed-status[data-status="open"] {
+  color: #2f9e44;
+}
+
+.activity-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.activity-card {
   border-radius: 8px;
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid transparent;
+  animation: activity-fade 9s ease forwards;
 }
 
-.feed-item-header {
+.activity-card--council_formed {
+  background: #f3d9fa;
+  border-color: #9775fa;
+  color: #5f3dc4;
+}
+
+.activity-card--provider_added {
+  background: #d3f9d8;
+  border-color: #2f9e44;
+  color: #1f5e2c;
+}
+
+.activity-card--provider_removed {
+  background: #e9ecef;
+  border-color: #868e96;
+  color: #495057;
+}
+
+.activity-card--asset_registered {
+  background: #fff3bf;
+  border-color: #f59f00;
+  color: #5c3d00;
+}
+
+.activity-card--channel_deposit {
+  background: #ffe8cc;
+  border-color: #e8590c;
+  color: #6a2a04;
+}
+
+.activity-card--channel_settlement {
+  background: #d0ebff;
+  border-color: #1c7ed6;
+  color: #0c4a89;
+}
+
+.activity-card-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.25rem;
-}
-
-.feed-event-type {
-  font-weight: 500;
+  gap: 0.5rem;
+  font-weight: 600;
   font-size: 0.875rem;
 }
 
-.feed-item-details {
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
+.activity-icon {
+  font-size: 1rem;
+  line-height: 1;
 }
 
-.feed-item-id {
+.activity-council {
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+}
+
+.activity-detail {
+  margin-top: 0.15rem;
   font-size: 0.7rem;
-  color: var(--text-muted);
+  opacity: 0.75;
 }
 
-/* Error banner */
-.error-banner {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid var(--inactive);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  color: var(--inactive);
-  margin-bottom: 1rem;
+.activity-card--leaving {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+@keyframes activity-fade {
+  0%,
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", monospace;
+}
+
+/* ── footer ───────────────────────────────────────────────────────── */
+
+.dashboard-footer {
+  grid-area: footer;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #868e96;
+  padding-top: 0.5rem;
 }
