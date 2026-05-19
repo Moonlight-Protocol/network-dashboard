@@ -18,18 +18,17 @@ const SECURITY_HEADERS: Record<string, string> = {
 function getCSP(): string {
   const environment = Deno.env.get("ENVIRONMENT") || "development";
   const isProd = environment === "production";
-  // Non-prod runs against local services (council-platform, soroban-rpc,
-  // friendbot, etc. on assorted localhost ports) — use `*` so dev work
-  // isn't blocked by CSP. Production keeps the strict allow-list.
+  // Non-prod runs against local services (council-platform, network-dashboard-
+  // platform, etc. on assorted localhost ports) — use `*` so dev work isn't
+  // blocked. Production allows-list the dashboard-api WS hosts the SPA
+  // connects to; ws/wss schemes need explicit hosts even with 'self'.
   const connectSrc = isProd
-    ? "connect-src 'self' https://soroban-testnet.stellar.org https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/"
+    ? "connect-src 'self' wss://dashboard-api.moonlightprotocol.io wss://dashboard-api-testnet.moonlightprotocol.io"
     : "connect-src *";
-  // The council-detail view renders inline `style="..."` attributes (progress
-  // bars, stat colours), which `style-src 'self'` rejects. Production keeps
-  // the strict policy; dev allows inline styles so the UI actually renders.
-  const styleSrc = isProd
-    ? "style-src 'self'"
-    : "style-src 'self' 'unsafe-inline'";
+  // §4 asset-breakdown bars and a couple of inline transitions render via
+  // `style="..."`. The dashboard is public + anonymous, no auth boundary
+  // to defend, so 'unsafe-inline' on style-src is an acceptable trade.
+  const styleSrc = "style-src 'self' 'unsafe-inline'";
   return [
     "default-src 'self'",
     "script-src 'self'",

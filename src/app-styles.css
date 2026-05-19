@@ -1,179 +1,596 @@
 /*
  * App-specific styles for network-dashboard.
  *
- * Tokens + base-styles + nav now come from @moonlight/ui at the pinned
- * tag — fetched and concatenated into public/styles.css by src/build.ts.
- * This file contains ONLY selectors the lib does not ship.
- * (network-dashboard does not consume the lib's stepper or invite-waitlist.)
+ * The build pipeline concatenates @moonlight/ui's tokens + base-styles
+ * + nav onto this file at build time. Keep this file scoped to the
+ * dashboard's own 5-section layout.
  */
 
-/* Nav-brand hover (lib's nav.css doesn't ship this variant) */
-.nav-brand:hover {
-  opacity: 0.9;
+:root {
+  --frame-stroke: #333;
+  --counter-blue: #1971c2;
+  --counter-blue-bg: #e7f5ff;
+  --council-green: #2f9e44;
+  --council-green-bg: #d3f9d8;
+  --pp-orange: #e8590c;
+  --pp-orange-bg: #ffe8cc;
+  --pulse-red: #f03e3e;
+  --moonlight-yellow: #fff3bf;
+  --sparkline-blue: #1c7ed6;
+  --sparkline-purple: #9775fa;
+  --sparkline-green: #2f9e44;
+  --activity-green: #d3f9d8;
+  --activity-gray: #f1f3f5;
+  --activity-yellow: #fff9db;
+  --activity-blue: #d0ebff;
+  --activity-orange: #ffe8cc;
+  --activity-purple: #e5dbff;
+  --activity-teal: #c5f6fa;
 }
 
-/* Tables */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1rem 0;
+body {
+  margin: 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+    sans-serif;
+  color: #212529;
+  background: #f8f9fa;
 }
 
-th, td {
-  padding: 0.75rem 1rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
+#app {
+  min-height: 100vh;
+  padding: 16px 20px 32px;
+  box-sizing: border-box;
 }
 
-th {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1440px;
+  margin: 0 auto;
 }
 
-/* Utility */
-.text-muted {
-  color: var(--text-muted);
+.row {
+  display: grid;
+  gap: 16px;
 }
 
-/* Loading + clickable row */
-.loading {
-  color: var(--text-muted);
-  padding: 2rem 0;
+.row.hero {
+  grid-template-columns: minmax(0, 1fr) 300px;
 }
 
-.clickable-row {
-  cursor: pointer;
-  transition: background 0.15s;
+.row.trends {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
 }
 
-.clickable-row:hover {
-  background: var(--surface);
-}
-
-/* Map */
-.map-container {
-  background: var(--surface);
-  border: 1px solid var(--border);
+.section {
+  background: #ffffff;
+  border: 1px solid var(--frame-stroke);
   border-radius: 8px;
-  padding: 1rem;
-  margin: 1rem 0 2rem;
-  overflow: hidden;
+  padding: 12px 16px;
+  box-sizing: border-box;
 }
 
-.world-map {
+.dashboard-footer {
+  text-align: center;
+  font-size: 12px;
+  color: #868e96;
+  padding: 8px 0 0;
+}
+
+/* §1 — Counter strip ──────────────────────────────────────────────── */
+
+.counter-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.counter-tile {
+  background: var(--counter-blue-bg);
+  border: 1px solid var(--counter-blue);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.counter-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--counter-blue);
+  text-transform: uppercase;
+}
+
+.counter-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0b3d6e;
+  font-variant-numeric: tabular-nums;
+}
+
+/* §2 — Topology ───────────────────────────────────────────────────── */
+
+.topology {
+  display: flex;
+  flex-direction: column;
+  min-height: 540px;
+  padding: 8px;
+}
+
+.topology-svg {
   width: 100%;
-  height: auto;
+  height: 100%;
+  min-height: 520px;
 }
 
-.council-dot {
-  fill: var(--primary);
-  opacity: 0.8;
-  cursor: pointer;
-  transition: opacity 0.15s, r 0.15s;
+.topology-label-center {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  fill: #212529;
 }
 
-.council-dot:hover {
-  opacity: 1;
-  fill: var(--primary-hover);
+.topology-label-council {
+  font-size: 12px;
+  font-weight: 600;
+  fill: #1b4332;
 }
 
-.council-label {
-  fill: var(--text-muted);
+.topology-label-jurisdiction {
   font-size: 10px;
-  text-anchor: middle;
+  fill: #495057;
+}
+
+.topology-hint {
+  font-size: 14px;
+  fill: #868e96;
+  font-style: italic;
+}
+
+.topology-council circle {
+  transition: filter 120ms ease-out, stroke-width 120ms ease-out;
+}
+
+.topology-council:hover circle {
+  filter: brightness(1.06);
+  stroke-width: 3;
+}
+
+.topology-council.selected circle {
+  stroke: #1864ab;
+  stroke-width: 3.5;
+}
+
+.topology-pulse {
   pointer-events: none;
 }
 
-/* Council grid */
-.council-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
+/* §2 — Activity feed ──────────────────────────────────────────────── */
+
+.activity-feed {
+  display: flex;
+  flex-direction: column;
+  min-height: 540px;
+  padding: 12px;
 }
 
-.council-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1.25rem;
-  text-decoration: none;
-  color: var(--text);
-  transition: border-color 0.15s;
-}
-
-.council-card:hover {
-  border-color: var(--primary);
-}
-
-.council-card-header {
+.activity-feed-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 12px;
 }
 
-.council-name {
-  font-weight: 600;
+.activity-feed-title {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.council-card-meta {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  margin-bottom: 0.25rem;
+.activity-feed-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f3f5;
+  color: #495057;
 }
 
-.council-card-id {
-  font-size: 0.7rem;
-  color: var(--text-muted);
+.activity-feed-status[data-state="open"] {
+  background: #d3f9d8;
+  color: #1b4332;
 }
 
-/* Transaction feed */
-.feed-list {
+.activity-feed-status[data-state="connecting"] {
+  background: #fff3bf;
+  color: #5c3c00;
+}
+
+.activity-feed-status[data-state="closed"] {
+  background: #ffe3e3;
+  color: #8a2a2a;
+}
+
+.activity-feed-list {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: 8px;
+  overflow: hidden;
 }
 
-.feed-item {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-}
-
-.feed-item-header {
+.activity-card {
   display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 8px 10px;
+  background: var(--activity-gray);
+  animation: card-in 240ms ease-out;
+  opacity: 1;
+  transition: opacity 600ms ease-in, transform 600ms ease-in;
+}
+
+.activity-card.fading {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+@keyframes card-in {
+  from {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.activity-card.kind-council_formed {
+  background: var(--activity-purple);
+}
+.activity-card.kind-provider_added {
+  background: var(--activity-green);
+}
+.activity-card.kind-provider_removed {
+  background: var(--activity-gray);
+}
+.activity-card.kind-asset_registered {
+  background: var(--activity-yellow);
+}
+.activity-card.kind-channel_settlement {
+  background: var(--activity-blue);
+}
+.activity-card.kind-channel_deposit {
+  background: var(--activity-orange);
+}
+.activity-card.kind-channel_bundle {
+  background: var(--activity-teal);
+}
+
+.activity-glyph {
+  font-size: 18px;
+  line-height: 1.1;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.activity-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.activity-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #212529;
+}
+
+.activity-council {
+  font-size: 12px;
+  color: #495057;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-detail {
+  font-size: 11px;
+  color: #495057;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* §3 — Council details ────────────────────────────────────────────── */
+
+.council-details {
+  padding: 14px 18px;
+}
+
+.council-details-hint {
+  font-size: 13px;
+  color: #868e96;
+  font-style: italic;
+}
+
+.council-details-hint.hidden,
+.council-details-panel.hidden {
+  display: none;
+}
+
+.council-details-header {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.council-details-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1b4332;
+}
+
+.council-details-jurisdiction {
+  font-size: 12px;
+  color: #495057;
+  background: #f1f3f5;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.council-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.kv-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 8px 10px;
+  border: 1px solid #e9ecef;
+}
+
+.kv-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #495057;
+}
+
+.kv-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: #212529;
+  font-variant-numeric: tabular-nums;
+}
+
+.kv-sub {
+  font-size: 11px;
+  color: #868e96;
+}
+
+.council-details-subheader {
+  margin: 12px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #495057;
+}
+
+.council-details-pp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: #212529;
+}
+
+.council-details-pp-list li {
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* §4 — Sparklines ─────────────────────────────────────────────────── */
+
+.sparklines {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sparkline-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.sparkline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.sparkline-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #495057;
+}
+
+.sparkline-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #212529;
+  font-variant-numeric: tabular-nums;
+}
+
+.sparkline-svg {
+  width: 100%;
+  height: 80px;
+}
+
+.sparkline-unit {
+  font-size: 10px;
+  color: #868e96;
+  align-self: flex-end;
+}
+
+/* §4 — Asset breakdown ────────────────────────────────────────────── */
+
+.asset-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.asset-breakdown-header {
+  margin-bottom: 4px;
+}
+
+.asset-breakdown-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #495057;
+}
+
+.asset-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.asset-breakdown-empty {
+  font-size: 12px;
+  color: #868e96;
+  font-style: italic;
+}
+
+.asset-row {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr) 56px 90px;
+  gap: 8px;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.25rem;
+  font-size: 12px;
 }
 
-.feed-event-type {
-  font-weight: 500;
-  font-size: 0.875rem;
+.asset-code {
+  font-weight: 700;
+  color: #212529;
 }
 
-.feed-item-details {
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
+.asset-bar-box {
+  background: #f1f3f5;
+  border-radius: 4px;
+  height: 12px;
+  overflow: hidden;
 }
 
-.feed-item-id {
-  font-size: 0.7rem;
-  color: var(--text-muted);
+.asset-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #2f9e44 0%, #82c91e 100%);
+  border-radius: 4px;
+  transition: width 220ms ease-out;
 }
 
-/* Error banner */
-.error-banner {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid var(--inactive);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  color: var(--inactive);
-  margin-bottom: 1rem;
+.asset-percent {
+  font-variant-numeric: tabular-nums;
+  color: #495057;
+  text-align: right;
+}
+
+.asset-amount {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* §5 — World map ──────────────────────────────────────────────────── */
+
+.world-map {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.world-map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.world-map-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #495057;
+}
+
+.world-map-status {
+  font-size: 11px;
+  color: #868e96;
+}
+
+.world-map-host {
+  width: 100%;
+  height: 320px;
+}
+
+.world-map-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.world-map-hint {
+  font-size: 14px;
+  fill: #adb5bd;
+}
+
+@media (max-width: 960px) {
+  .row.hero,
+  .row.trends {
+    grid-template-columns: 1fr;
+  }
+  .counter-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .sparklines {
+    grid-template-columns: 1fr;
+  }
+  .topology,
+  .activity-feed {
+    min-height: 360px;
+  }
 }
