@@ -17,13 +17,38 @@ async function writeHealthJson(version: string): Promise<void> {
   console.log(`Built public/health.json (network-dashboard ${version})`);
 }
 
+// Pinned @moonlight/ui tag. raw.githubusercontent.com serves CSS as
+// text/plain with nosniff so browsers refuse @import of these URLs; we
+// fetch + concatenate at build time and write the result to public/styles.css.
+// Same pattern + tag as provider-console / council-console.
+const UI_LIB_TAG = "v0.3.1";
+const UI_LIB_CSS_FILES = [
+  "tokens/tokens.css",
+  "base-styles/base-styles.css",
+  "nav/nav.css",
+];
+
 async function buildStyles(): Promise<void> {
+  const parts: string[] = [];
+  for (const path of UI_LIB_CSS_FILES) {
+    const url =
+      `https://raw.githubusercontent.com/Moonlight-Protocol/ui/${UI_LIB_TAG}/src/${path}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(
+        `Failed to fetch ${url}: ${res.status} ${res.statusText}`,
+      );
+    }
+    parts.push(
+      `/* @moonlight/ui ${UI_LIB_TAG} — ${path} */\n${await res.text()}`,
+    );
+  }
   const appStyles = await Deno.readTextFile("src/app-styles.css");
-  await Deno.writeTextFile(
-    "public/styles.css",
-    `/* network-dashboard app-styles */\n${appStyles}`,
+  parts.push(`/* network-dashboard app-styles */\n${appStyles}`);
+  await Deno.writeTextFile("public/styles.css", parts.join("\n"));
+  console.log(
+    `Built public/styles.css from @moonlight/ui@${UI_LIB_TAG} + src/app-styles.css`,
   );
-  console.log("Built public/styles.css from src/app-styles.css");
 }
 
 const isProduction = Deno.args.includes("--production");

@@ -10,6 +10,8 @@
  *   §4 Sparklines + Asset breakdown (side-by-side)
  *   §5 World map
  */
+import { renderNav } from "@moonlight/ui/nav";
+import { pageLayout } from "@moonlight/ui/layout";
 import { NETWORK_DASHBOARD_PLATFORM_URL } from "./lib/config.ts";
 import { connectNetworkPlatform } from "./lib/ws-client.ts";
 import { CounterStrip } from "./views/counter-strip.ts";
@@ -35,8 +37,8 @@ function renderShell(): {
   if (!app) throw new Error("#app root not found");
   app.textContent = "";
 
-  const layout = document.createElement("div");
-  layout.className = "dashboard";
+  const dashboard = document.createElement("div");
+  dashboard.className = "dashboard";
 
   const counters = new CounterStrip();
 
@@ -56,7 +58,7 @@ function renderShell(): {
 
   const worldMap = new WorldMap();
 
-  layout.append(
+  dashboard.append(
     counters.element(),
     heroRow,
     details.element(),
@@ -64,12 +66,11 @@ function renderShell(): {
     worldMap.element(),
   );
 
-  const footer = document.createElement("footer");
-  footer.className = "dashboard-footer";
-  footer.textContent = `Moonlight Network Dashboard · v${__APP_VERSION__}`;
-  layout.appendChild(footer);
-
-  app.appendChild(layout);
+  const nav = renderNav({
+    brand: "Network Dashboard",
+    version: __APP_VERSION__,
+  });
+  app.appendChild(pageLayout(nav, dashboard));
   return { counters, topology, feed, details, sparklines, assets, worldMap };
 }
 
