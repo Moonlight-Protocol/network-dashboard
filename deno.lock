@@ -64,7 +64,11 @@
     "https://deno.land/x/denoflate@1.2.1/pkg/denoflate_bg.wasm.js": "d581956245407a2115a3d7e8d85a9641c032940a8e810acbd59ca86afd34d44d",
     "https://deno.land/x/esbuild@v0.20.1/mod.js": "d50e500b53ce67e31116beba3916b0f9275c0e1cc20bc5cadc0fc1b7a3b06fd9",
     "https://raw.githubusercontent.com/Moonlight-Protocol/ui/v0.3.1/src/layout/mod.ts": "064e49573a35de0124de1e7ab2cdfc4f661a3e2415da69f70b0a607c5224f64f",
-    "https://raw.githubusercontent.com/Moonlight-Protocol/ui/v0.3.1/src/nav/mod.ts": "4bce92a8e347e12953f2fc7e4329e0b58e3dcb8d1c872054e2d30beeba4373e0"
+    "https://raw.githubusercontent.com/Moonlight-Protocol/ui/v0.3.1/src/nav/mod.ts": "4bce92a8e347e12953f2fc7e4329e0b58e3dcb8d1c872054e2d30beeba4373e0",
+    "https://raw.githubusercontent.com/Moonlight-Protocol/ui/v0.3.2/src/layout/mod.ts": "064e49573a35de0124de1e7ab2cdfc4f661a3e2415da69f70b0a607c5224f64f",
+    "https://raw.githubusercontent.com/Moonlight-Protocol/ui/v0.3.2/src/nav/mod.ts": "4bce92a8e347e12953f2fc7e4329e0b58e3dcb8d1c872054e2d30beeba4373e0",
+    "https://raw.githubusercontent.com/Moonlight-Protocol/ui/v0.3.2/src/world-map/countries.ts": "0f403290178dd4040295ad34fe3277a403928fabea314f8fd16d9c51721cb612",
+    "https://raw.githubusercontent.com/Moonlight-Protocol/ui/v0.3.2/src/world-map/mod.ts": "26b2b745c0df3a9396d47b69c77350c0632f01ccbf059f8da443d737961a6145"
   },
   "workspace": {
     "dependencies": [

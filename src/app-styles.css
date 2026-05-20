@@ -585,24 +585,89 @@ main.container {
   color: var(--text-muted);
 }
 
-.world-map-host {
+/* Section-level wrapper that sizes the shared @moonlight/ui world-map
+   to the dashboard's §5 slot. The internal .world-map-host / .world-map-svg
+   styling comes from @moonlight/ui/world-map/world-map.css. */
+.world-map-section-host {
   width: 100%;
   height: 320px;
+  position: relative;
 }
 
-.world-map-svg {
-  width: 100%;
-  height: 100%;
+/* Hover-driven slot classes. The ui/world-map module applies these via
+   setSlot(); the colors / opacities below are this dashboard's choice. */
+.world-map-svg .world-map-country.hovered,
+.world-map-svg .world-map-country.hovered path {
+  fill: var(--primary-hover);
 }
 
-.world-map-land path {
-  fill: var(--border) !important;
-  stroke: rgba(139, 143, 163, 0.35) !important;
+.world-map-svg .world-map-country.reachable,
+.world-map-svg .world-map-country.reachable path {
+  fill: #86efac;
 }
 
-.world-map-hint {
-  font-size: 0.875rem;
-  fill: var(--text-muted);
+/* Dim by replacing the fill instead of dropping opacity — the base land
+   color is already dark (#2a2d3a), so opacity 0.25 over the page bg made
+   un-focused countries read as black. A flat muted fill keeps every
+   dimmed country to the same quiet tone regardless of whether it was
+   `selected` before. */
+.world-map-svg .world-map-country.dimmed,
+.world-map-svg .world-map-country.dimmed path {
+  fill: rgba(139, 143, 163, 0.18);
+}
+
+/* Popover anchored to the cursor inside the §5 host. */
+.world-map-popover {
+  position: absolute;
+  pointer-events: none;
+  z-index: 4;
+  min-width: 180px;
+  max-width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.625rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+.world-map-popover-header {
+  font-weight: 700;
+  margin-bottom: 0.375rem;
+  color: var(--primary);
+}
+
+.world-map-popover-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.world-map-popover-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.world-map-popover-name {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.world-map-popover-meta {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.world-map-popover-empty {
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 @media (max-width: 960px) {

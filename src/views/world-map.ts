@@ -1,29 +1,40 @@
-import type { CouncilTopologyEntry } from "../lib/network-events.ts";
 import {
   COUNTRIES,
-  fetchWorldSvg,
-  getCountryName,
-  projectCountry,
-  sanitizeSvgPath,
-} from "../lib/world-map.ts";
+  renderWorldMap,
+  type WorldMapHandle,
+} from "@moonlight/ui/world-map";
+import type { CouncilTopologyEntry } from "../lib/network-events.ts";
 
 /**
- * §5 — World map. Bottom strip showing jurisdictions of registered
- * councils as small markers on the SVG world atlas. Unknown / unresolvable
- * jurisdiction codes are silently dropped; the layout doesn't depend on
- * complete coverage.
+ * §5 — World map. Bottom strip showing council jurisdictions.
+ *
+ * Visual states layered on top of the shared @moonlight/ui/world-map
+ * component (which itself knows nothing about councils):
+ *   - `selected`: union of all council jurisdictions in the topology.
+ *   - `hovered`:  the country currently under the pointer.
+ *   - `reachable`: every other country sharing a council with `hovered`.
+ *   - `dimmed`:    every country not in the active focus set (faded out).
+ *
+ * Hover handling lives entirely on this side; the map component only
+ * fires `onHover(code | null)` and exposes `setSlot()` to apply our
+ * dashboard-specific CSS classes. A small popover next to the cursor
+ * lists every council whose jurisdictions include the hovered country
+ * (name + provider count), or "No councils" when none.
  */
 
-const SVG_NS = "http://www.w3.org/2000/svg";
+const HOVERED_SLOT = "hovered";
+const REACHABLE_SLOT = "reachable";
+const DIMMED_SLOT = "dimmed";
 
 export class WorldMap {
   private root: HTMLElement;
   private mapHost: HTMLDivElement;
   private status: HTMLElement;
-  private pendingTopology: CouncilTopologyEntry[] = [];
-  private svgRoot: SVGSVGElement | null = null;
-  private markerLayer: SVGGElement | null = null;
-  private loading = false;
+  private popover: HTMLDivElement;
+  private handle: WorldMapHandle | null = null;
+  private pendingMount: Promise<void> | null = null;
+  private councils: CouncilTopologyEntry[] = [];
+  private allCodes: string[] = [];
   private failed = false;
 
   constructor() {
@@ -43,7 +54,12 @@ export class WorldMap {
     header.append(title, status);
 
     this.mapHost = document.createElement("div");
-    this.mapHost.className = "world-map-host";
+    this.mapHost.className = "world-map-section-host";
+
+    this.popover = document.createElement("div");
+    this.popover.className = "world-map-popover";
+    this.popover.hidden = true;
+    this.mapHost.appendChild(this.popover);
 
     this.root.append(header, this.mapHost);
   }
@@ -53,125 +69,154 @@ export class WorldMap {
   }
 
   render(topology: CouncilTopologyEntry[]): void {
-    this.pendingTopology = topology;
+    this.councils = topology;
+    this.allCodes = Array.from(
+      topology.reduce((acc, c) => {
+        for (const code of c.jurisdictions) {
+          const upper = code.toUpperCase();
+          if (COUNTRIES[upper]) acc.add(upper);
+        }
+        return acc;
+      }, new Set<string>()),
+    );
+
     if (this.failed) {
       this.status.textContent = "map unavailable";
       return;
     }
-    if (!this.svgRoot && !this.loading) {
-      this.loadSvg();
+    if (this.handle) {
+      this.handle.setSelected(this.allCodes);
+      this.updateStatus();
       return;
     }
-    if (this.svgRoot && this.markerLayer) this.repaintMarkers();
+    if (this.pendingMount) return;
+
+    this.pendingMount = renderWorldMap({
+      selected: this.allCodes,
+      svgUrl: "/world-map.svg",
+      onHover: (code) => this.handleHover(code),
+    })
+      .then((handle) => {
+        this.handle = handle;
+        this.mapHost.insertBefore(handle.element, this.popover);
+        handle.setSelected(this.allCodes);
+        this.updateStatus();
+        this.mapHost.addEventListener(
+          "mousemove",
+          (ev) => this.positionPopover(ev),
+        );
+      })
+      .catch((err) => {
+        this.failed = true;
+        this.status.textContent = "map unavailable";
+        console.warn("World map failed to load", err);
+      })
+      .finally(() => {
+        this.pendingMount = null;
+      });
   }
 
-  // ── internals ──────────────────────────────────────────────────────
-
-  private async loadSvg(): Promise<void> {
-    this.loading = true;
-    try {
-      const raw = await fetchWorldSvg();
-      const parsed = new DOMParser().parseFromString(raw, "image/svg+xml");
-      const svgEl = parsed.documentElement;
-      if (svgEl.nodeName !== "svg") {
-        throw new Error("world-map.svg did not parse as <svg>");
-      }
-      // Re-create an SVG in our namespace; copying nodes wholesale fails
-      // some browsers' namespace checks when later querying.
-      const svg = document.createElementNS(
-        SVG_NS,
-        "svg",
-      ) as SVGSVGElement;
-      const viewBox = svgEl.getAttribute("viewBox") ??
-        "30.767 241.591 784.077 458.627";
-      svg.setAttribute("viewBox", viewBox);
-      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-      svg.classList.add("world-map-svg");
-
-      const paths = svgEl.querySelectorAll("path");
-      const land = document.createElementNS(SVG_NS, "g") as SVGGElement;
-      land.setAttribute("class", "world-map-land");
-      for (const path of Array.from(paths)) {
-        const d = sanitizeSvgPath(path.getAttribute("d") ?? "");
-        if (!d) continue;
-        const id = path.getAttribute("id");
-        const newPath = document.createElementNS(SVG_NS, "path");
-        newPath.setAttribute("d", d);
-        newPath.setAttribute("fill", "#f1f3f5");
-        newPath.setAttribute("stroke", "#dee2e6");
-        newPath.setAttribute("stroke-width", "0.5");
-        if (id) newPath.setAttribute("data-iso", id.toUpperCase());
-        land.appendChild(newPath);
-      }
-
-      const markers = document.createElementNS(SVG_NS, "g") as SVGGElement;
-      markers.setAttribute("class", "world-map-markers");
-
-      svg.append(land, markers);
-      this.mapHost.textContent = "";
-      this.mapHost.appendChild(svg);
-
-      this.svgRoot = svg;
-      this.markerLayer = markers;
-      this.repaintMarkers();
-      this.status.textContent = "ready";
-    } catch (err) {
-      this.failed = true;
-      console.warn("World map failed to load", err);
-      this.status.textContent = "map unavailable";
-      this.mapHost.textContent = "";
-    } finally {
-      this.loading = false;
-    }
+  private updateStatus(): void {
+    this.status.textContent = this.allCodes.length === 0
+      ? "no jurisdictions"
+      : `${this.allCodes.length} jurisdiction${
+        this.allCodes.length === 1 ? "" : "s"
+      }`;
   }
 
-  private repaintMarkers(): void {
-    if (!this.markerLayer) return;
-    this.markerLayer.textContent = "";
-
-    const seen = new Map<string, string[]>();
-    for (const c of this.pendingTopology) {
-      for (const code of c.jurisdictions) {
-        const upper = code.toUpperCase();
-        if (!COUNTRIES[upper]) continue;
-        const bucket = seen.get(upper) ?? [];
-        bucket.push(c.name ?? c.id);
-        seen.set(upper, bucket);
-      }
-    }
-
-    if (seen.size === 0) {
-      const hint = document.createElementNS(SVG_NS, "text");
-      hint.setAttribute("x", "400");
-      hint.setAttribute("y", "470");
-      hint.setAttribute("text-anchor", "middle");
-      hint.classList.add("world-map-hint");
-      hint.textContent = "No council jurisdictions resolved yet.";
-      this.markerLayer.appendChild(hint);
-      this.status.textContent = "no jurisdictions";
+  private handleHover(code: string | null): void {
+    if (!this.handle) return;
+    if (code === null) {
+      this.handle.setSlot(HOVERED_SLOT, []);
+      this.handle.setSlot(REACHABLE_SLOT, []);
+      this.handle.setSlot(DIMMED_SLOT, []);
+      this.popover.hidden = true;
       return;
     }
 
-    for (const [code, councils] of seen) {
-      const projected = projectCountry(code, 0, 0);
-      if (!projected) continue;
-      const group = document.createElementNS(SVG_NS, "g");
-      group.classList.add("world-map-marker");
-      group.dataset.iso = code;
+    // Councils whose jurisdictions include the hovered country.
+    const hoveredCouncils = this.councils.filter((c) =>
+      c.jurisdictions.some((j) => j.toUpperCase() === code)
+    );
 
-      const dot = document.createElementNS(SVG_NS, "circle");
-      dot.setAttribute("cx", String(projected.x));
-      dot.setAttribute("cy", String(projected.y));
-      dot.setAttribute("r", "6");
-      dot.setAttribute("fill", "#e8590c");
-      dot.setAttribute("stroke", "#ffe8cc");
-      dot.setAttribute("stroke-width", "2");
-
-      const title = document.createElementNS(SVG_NS, "title");
-      title.textContent = `${getCountryName(code)} — ${councils.join(", ")}`;
-      group.append(dot, title);
-      this.markerLayer.appendChild(group);
+    if (hoveredCouncils.length === 0) {
+      // No-council country: just dim everything else, popover says so.
+      const dim = this.allCodes.filter((c) => c !== code);
+      this.handle.setSlot(HOVERED_SLOT, [code]);
+      this.handle.setSlot(REACHABLE_SLOT, []);
+      this.handle.setSlot(DIMMED_SLOT, dim);
+      this.renderPopoverEmpty(code);
+      return;
     }
-    this.status.textContent = `${seen.size} jurisdictions`;
+
+    // Reachable = union of jurisdictions across all councils touching `code`,
+    // minus the hovered country itself.
+    const reachable = new Set<string>();
+    for (const c of hoveredCouncils) {
+      for (const j of c.jurisdictions) {
+        const upper = j.toUpperCase();
+        if (upper !== code && COUNTRIES[upper]) reachable.add(upper);
+      }
+    }
+    const focus = new Set<string>([code, ...reachable]);
+    const dim = this.allCodes.filter((c) => !focus.has(c));
+
+    this.handle.setSlot(HOVERED_SLOT, [code]);
+    this.handle.setSlot(REACHABLE_SLOT, Array.from(reachable));
+    this.handle.setSlot(DIMMED_SLOT, dim);
+    this.renderPopoverCouncils(code, hoveredCouncils);
+  }
+
+  private renderPopoverCouncils(
+    code: string,
+    councils: CouncilTopologyEntry[],
+  ): void {
+    this.popover.textContent = "";
+    const header = document.createElement("div");
+    header.className = "world-map-popover-header";
+    header.textContent = `${COUNTRIES[code]?.name ?? code} (${code})`;
+    this.popover.appendChild(header);
+
+    const list = document.createElement("ul");
+    list.className = "world-map-popover-list";
+    for (const c of councils) {
+      const li = document.createElement("li");
+      const name = document.createElement("span");
+      name.className = "world-map-popover-name";
+      name.textContent = c.name ?? c.id.slice(0, 12);
+      const meta = document.createElement("span");
+      meta.className = "world-map-popover-meta";
+      const n = c.providers.length;
+      meta.textContent = `${n} PP${n === 1 ? "" : "s"}`;
+      li.append(name, meta);
+      list.appendChild(li);
+    }
+    this.popover.appendChild(list);
+    this.popover.hidden = false;
+  }
+
+  private renderPopoverEmpty(code: string): void {
+    this.popover.textContent = "";
+    const header = document.createElement("div");
+    header.className = "world-map-popover-header";
+    header.textContent = `${COUNTRIES[code]?.name ?? code} (${code})`;
+    const body = document.createElement("div");
+    body.className = "world-map-popover-empty";
+    body.textContent = "No councils";
+    this.popover.append(header, body);
+    this.popover.hidden = false;
+  }
+
+  private positionPopover(ev: MouseEvent): void {
+    if (this.popover.hidden) return;
+    const hostRect = this.mapHost.getBoundingClientRect();
+    const x = ev.clientX - hostRect.left + 14;
+    const y = ev.clientY - hostRect.top + 14;
+    // Keep the popover inside the host bounds; nudge left/up if needed.
+    const popRect = this.popover.getBoundingClientRect();
+    const maxX = hostRect.width - popRect.width - 8;
+    const maxY = hostRect.height - popRect.height - 8;
+    this.popover.style.left = `${Math.max(0, Math.min(x, maxX))}px`;
+    this.popover.style.top = `${Math.max(0, Math.min(y, maxY))}px`;
   }
 }

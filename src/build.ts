@@ -21,11 +21,12 @@ async function writeHealthJson(version: string): Promise<void> {
 // text/plain with nosniff so browsers refuse @import of these URLs; we
 // fetch + concatenate at build time and write the result to public/styles.css.
 // Same pattern + tag as provider-console / council-console.
-const UI_LIB_TAG = "v0.3.1";
+const UI_LIB_TAG = "v0.3.2";
 const UI_LIB_CSS_FILES = [
   "tokens/tokens.css",
   "base-styles/base-styles.css",
   "nav/nav.css",
+  "world-map/world-map.css",
 ];
 
 async function buildStyles(): Promise<void> {
