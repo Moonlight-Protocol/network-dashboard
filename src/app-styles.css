@@ -1,179 +1,917 @@
 /*
  * App-specific styles for network-dashboard.
  *
- * Tokens + base-styles + nav now come from @moonlight/ui at the pinned
- * tag — fetched and concatenated into public/styles.css by src/build.ts.
- * This file contains ONLY selectors the lib does not ship.
- * (network-dashboard does not consume the lib's stepper or invite-waitlist.)
+ * Tokens + base-styles + nav come from @moonlight/ui at build time
+ * (concatenated by build.ts). This file only defines the 5-section
+ * layout + the SVG-driven topology / sparkline / world-map visual
+ * vocabulary on top of the upstream dark theme.
+ *
+ * All colours are sourced from the @moonlight/ui tokens.css palette
+ * (--bg / --surface / --border / --text / --text-muted / --primary /
+ * --active / --pending / --inactive). Event-kind accents below live in
+ * a small palette here because the sketch maps each kind to a specific
+ * hue that doesn't have a single token equivalent.
  */
 
-/* Nav-brand hover (lib's nav.css doesn't ship this variant) */
-.nav-brand:hover {
-  opacity: 0.9;
+:root {
+  /* Per-event-kind accents — dark-mode tuned (saturated, mid-lightness). */
+  --kind-council: #a78bfa; /* purple */
+  --kind-pp-add: #4ade80; /* green */
+  --kind-pp-remove: #6b7280; /* gray */
+  --kind-asset: #fbbf24; /* yellow */
+  --kind-deposit: #fb923c; /* orange */
+  --kind-settlement: #60a5fa; /* blue */
+  --kind-bundle: #22d3ee; /* teal */
+  --kind-default: #f87171; /* red, fallback pulses */
+
+  /* Topology + center node. */
+  --moonlight-yellow: #fde68a;
+  --moonlight-yellow-stroke: #f59e0b;
+  --council-fill: rgba(74, 222, 128, 0.12);
+  --council-stroke: #4ade80;
+  --pp-fill: rgba(251, 146, 60, 0.18);
+  --pp-stroke: #fb923c;
+
+  /* Sparkline lines. */
+  --sparkline-throughput: #60a5fa;
+  --sparkline-latency: #a78bfa;
+  --sparkline-volume: #4ade80;
 }
 
-/* Tables */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1rem 0;
+/* Override @moonlight/ui's .container width — the dashboard sprawls. */
+main.container {
+  max-width: 1440px;
+  margin: 1.25rem auto 2rem;
+  padding: 0 1.5rem;
 }
 
-th, td {
-  padding: 0.75rem 1rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-th {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.row {
+  display: grid;
+  gap: 1rem;
 }
 
-/* Utility */
-.text-muted {
-  color: var(--text-muted);
+.row.detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(200px, 240px));
+  grid-template-areas:
+    "map  map  countries"
+    "map  map  councils"
+    "events events providers";
 }
 
-/* Loading + clickable row */
-.loading {
-  color: var(--text-muted);
-  padding: 2rem 0;
-}
-
-.clickable-row {
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.clickable-row:hover {
-  background: var(--surface);
-}
-
-/* Map */
-.map-container {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-  margin: 1rem 0 2rem;
+/* `min-height: 0` lets the grid cell win over each section's intrinsic
+   content height, and `overflow: hidden` clips children so the inner
+   scroll regions can take over (set on the content lists below). */
+.row.detail-grid > .section {
+  min-height: 0;
   overflow: hidden;
 }
-
-.world-map {
-  width: 100%;
-  height: auto;
+.row.detail-grid > .world-map {
+  grid-area: map;
+}
+.row.detail-grid > .country-details {
+  grid-area: countries;
+}
+.row.detail-grid > .council-details {
+  grid-area: councils;
+}
+.row.detail-grid > .provider-details {
+  grid-area: providers;
+}
+.row.detail-grid > .activity-feed {
+  grid-area: events;
 }
 
-.council-dot {
-  fill: var(--primary);
-  opacity: 0.8;
-  cursor: pointer;
-  transition: opacity 0.15s, r 0.15s;
+/* Each panel's content area scrolls vertically; the header stays put. */
+.country-details-panel,
+.council-details-panel,
+.provider-details-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
-.council-dot:hover {
-  opacity: 1;
-  fill: var(--primary-hover);
+.row.trends {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
 }
 
-.council-label {
-  fill: var(--text-muted);
-  font-size: 10px;
-  text-anchor: middle;
-  pointer-events: none;
-}
-
-/* Council grid */
-.council-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.council-card {
+.section {
   background: var(--surface);
   border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.875rem 1rem;
+  box-sizing: border-box;
+}
+
+/* §1 — Counter strip ──────────────────────────────────────────────── */
+
+.counter-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.counter-tile {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.35);
   border-radius: 8px;
-  padding: 1.25rem;
-  text-decoration: none;
+  padding: 0.75rem 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.counter-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.counter-value {
+  font-size: 1.5rem;
+  font-weight: 700;
   color: var(--text);
-  transition: border-color 0.15s;
+  font-variant-numeric: tabular-nums;
 }
 
-.council-card:hover {
-  border-color: var(--primary);
+/* §3 — Activity feed ──────────────────────────────────────────────── */
+
+.activity-feed,
+.council-details,
+.provider-details {
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  padding: 0.75rem;
 }
 
-.council-card-header {
+.activity-feed {
+  padding: 0.75rem;
+}
+
+.activity-feed-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
-.council-name {
-  font-weight: 600;
-}
-
-.council-card-meta {
-  font-size: 0.875rem;
+.activity-feed-title {
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  margin-bottom: 0.25rem;
 }
 
-.council-card-id {
+.activity-feed-status {
   font-size: 0.7rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(139, 143, 163, 0.18);
   color: var(--text-muted);
 }
 
-/* Transaction feed */
-.feed-list {
+.activity-feed-status[data-state="open"] {
+  background: rgba(74, 222, 128, 0.18);
+  color: var(--active);
+}
+
+.activity-feed-status[data-state="connecting"] {
+  background: rgba(245, 158, 11, 0.18);
+  color: var(--pending);
+}
+
+.activity-feed-status[data-state="closed"] {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--inactive);
+}
+
+.activity-feed-list {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-top: 1rem;
+  overflow-y: auto;
 }
 
-.feed-item {
-  background: var(--surface);
+.activity-card {
+  display: flex;
+  gap: 0.625rem;
+  align-items: flex-start;
+  border-radius: 8px;
+  border-left: 3px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.5rem 0.625rem;
+  animation: card-in 220ms ease-out;
+  opacity: 1;
+  transition: opacity 600ms ease-in, transform 600ms ease-in;
+}
+
+.activity-card.fading {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+@keyframes card-in {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.activity-card.kind-council_formed {
+  border-left-color: var(--kind-council);
+}
+.activity-card.kind-provider_added {
+  border-left-color: var(--kind-pp-add);
+}
+.activity-card.kind-provider_removed {
+  border-left-color: var(--kind-pp-remove);
+}
+.activity-card.kind-asset_registered {
+  border-left-color: var(--kind-asset);
+}
+.activity-card.kind-channel_settlement {
+  border-left-color: var(--kind-settlement);
+}
+.activity-card.kind-channel_deposit {
+  border-left-color: var(--kind-deposit);
+}
+.activity-card.kind-channel_bundle {
+  border-left-color: var(--kind-bundle);
+}
+
+.activity-glyph {
+  font-size: 1.125rem;
+  line-height: 1.1;
+  font-weight: 700;
+  margin-top: 0.125rem;
+  color: var(--text);
+}
+
+.activity-card.kind-council_formed .activity-glyph {
+  color: var(--kind-council);
+}
+.activity-card.kind-provider_added .activity-glyph {
+  color: var(--kind-pp-add);
+}
+.activity-card.kind-provider_removed .activity-glyph {
+  color: var(--kind-pp-remove);
+}
+.activity-card.kind-asset_registered .activity-glyph {
+  color: var(--kind-asset);
+}
+.activity-card.kind-channel_settlement .activity-glyph {
+  color: var(--kind-settlement);
+}
+.activity-card.kind-channel_deposit .activity-glyph {
+  color: var(--kind-deposit);
+}
+.activity-card.kind-channel_bundle .activity-glyph {
+  color: var(--kind-bundle);
+}
+
+.activity-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.activity-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.activity-council {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-detail {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* §3 — Council details ────────────────────────────────────────────── */
+
+.council-details {
+  padding: 0.875rem 1.125rem;
+}
+
+.council-details-hint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.council-details-hint.hidden,
+.council-details-panel.hidden {
+  display: none;
+}
+
+.council-details-header {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  margin-bottom: 0.625rem;
+}
+
+.council-details-name {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.council-details-jurisdiction {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: rgba(139, 143, 163, 0.18);
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+}
+
+.council-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.625rem;
+  margin-bottom: 0.75rem;
+}
+
+.kv-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+}
+
+.kv-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.kv-value {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.kv-sub {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.council-details-subheader {
+  margin: 0.75rem 0 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.council-details-pp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.council-details-pp-button {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.council-details-pp-button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border);
+}
+
+/* §4 — Sparklines ─────────────────────────────────────────────────── */
+
+.sparklines {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.sparkline-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem 0.625rem;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.feed-item-header {
+.sparkline-header {
   display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.sparkline-title {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.sparkline-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.sparkline-svg {
+  width: 100%;
+  height: 80px;
+}
+
+.sparkline-unit {
+  font-size: 0.625rem;
+  color: var(--text-muted);
+  align-self: flex-end;
+}
+
+/* §4 — Asset breakdown ────────────────────────────────────────────── */
+
+.asset-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.asset-breakdown-header {
+  margin-bottom: 0.25rem;
+}
+
+.asset-breakdown-title {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.asset-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.asset-breakdown-empty {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.asset-row {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr) 56px 90px;
+  gap: 0.5rem;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
 }
 
-.feed-event-type {
-  font-weight: 500;
-  font-size: 0.875rem;
+.asset-code {
+  font-weight: 700;
+  color: var(--text);
 }
 
-.feed-item-details {
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
+.asset-bar-box {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  height: 12px;
+  overflow: hidden;
 }
 
-.feed-item-id {
+.asset-bar {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--primary) 0%,
+    var(--primary-hover) 100%
+  );
+  border-radius: 4px;
+  transition: width 220ms ease-out;
+}
+
+.asset-percent {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.asset-amount {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+/* §5 — World map ──────────────────────────────────────────────────── */
+
+.world-map {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.world-map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.world-map-title {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.world-map-status {
   font-size: 0.7rem;
   color: var(--text-muted);
 }
 
-/* Error banner */
-.error-banner {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid var(--inactive);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  color: var(--inactive);
-  margin-bottom: 1rem;
+/* Section-level wrapper that sizes the shared @moonlight/ui world-map
+   to the dashboard's §5 slot. The internal .world-map-host / .world-map-svg
+   styling comes from @moonlight/ui/world-map/world-map.css. */
+.world-map-section-host {
+  width: 100%;
+  height: 320px;
+  position: relative;
+}
+
+/* Hover-driven slot classes. The ui/world-map module applies these via
+   setSlot(); the colors / opacities below are this dashboard's choice. */
+.world-map-svg .world-map-country.hovered,
+.world-map-svg .world-map-country.hovered path {
+  fill: var(--primary-hover);
+}
+
+.world-map-svg .world-map-country.reachable,
+.world-map-svg .world-map-country.reachable path {
+  fill: #86efac;
+}
+
+/* Dim by replacing the fill instead of dropping opacity — the base land
+   color is already dark (#2a2d3a), so opacity 0.25 over the page bg made
+   un-focused countries read as black. A flat muted fill keeps every
+   dimmed country to the same quiet tone regardless of whether it was
+   `selected` before. */
+.world-map-svg .world-map-country.dimmed,
+.world-map-svg .world-map-country.dimmed path {
+  fill: rgba(139, 143, 163, 0.18);
+}
+
+/* Persistent "you clicked this" highlight — kept after the pointer leaves
+   so the country-details side panel has a visible anchor. */
+.world-map-svg .world-map-country.active-country,
+.world-map-svg .world-map-country.active-country path {
+  fill: var(--primary);
+  stroke: var(--primary-hover);
+  stroke-width: 1;
+}
+
+/* §5 — Country details side panel ────────────────────────────────── */
+
+.country-details {
+  padding: 0.875rem 1.125rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.country-details-hint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.country-details-hint.hidden,
+.country-details-panel.hidden {
+  display: none;
+}
+
+.country-details-header {
+  display: flex;
+  gap: 0.625rem;
+  align-items: baseline;
+  margin-bottom: 0.625rem;
+}
+
+.country-details-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.country-details-code {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: rgba(139, 143, 163, 0.18);
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+}
+
+.country-details-empty {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.country-details-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+}
+
+.country-details-council {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.country-details-council:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--primary);
+}
+
+.country-details-council-name {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-details-council-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.country-details-council-juris {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* §3 — Provider details column ────────────────────────────────────── */
+
+.provider-details-hint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.provider-details-hint.hidden,
+.provider-details-panel.hidden {
+  display: none;
+}
+
+.provider-details-header {
+  margin-bottom: 0.625rem;
+}
+
+.provider-details-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.provider-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+  margin-bottom: 0.75rem;
+}
+
+.provider-details-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+}
+
+.provider-details-kv-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.provider-details-kv-value {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.provider-details-subheader {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.provider-details-pubkey {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text);
+  word-break: break-all;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 0.375rem 0.5rem;
+}
+
+.provider-details-council-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.provider-details-council-list li {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 0.375rem 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  overflow: hidden;
+}
+
+.provider-details-council-name {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-details-council-juris {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  flex-shrink: 0;
+}
+
+/* Popover anchored to the cursor inside the §5 host. */
+.world-map-popover {
+  position: absolute;
+  pointer-events: none;
+  z-index: 4;
+  min-width: 180px;
+  max-width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.625rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+.world-map-popover-header {
+  font-weight: 700;
+  margin-bottom: 0.375rem;
+  color: var(--primary);
+}
+
+.world-map-popover-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.world-map-popover-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.world-map-popover-name {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.world-map-popover-meta {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.world-map-popover-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+@media (max-width: 960px) {
+  .row.detail-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    grid-template-areas:
+      "map"
+      "countries"
+      "councils"
+      "events"
+      "providers";
+  }
+  .row.trends {
+    grid-template-columns: 1fr;
+  }
+  .counter-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .sparklines {
+    grid-template-columns: 1fr;
+  }
+  .activity-feed,
+  .council-details,
+  .provider-details {
+    min-height: 320px;
+  }
 }
