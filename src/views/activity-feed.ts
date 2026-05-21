@@ -9,8 +9,8 @@ import type { WsStatus } from "../lib/ws-client.ts";
  * the sketch palette.
  */
 
-const CARD_TTL_MS = 8_000;
-const MAX_VISIBLE = 5;
+const CARD_TTL_MS = 5 * 60 * 1000;
+const MAX_VISIBLE = 10;
 
 const KIND_GLYPH: Record<NetworkEventKind, string> = {
   council_formed: "★",
