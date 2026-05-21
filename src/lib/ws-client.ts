@@ -1,4 +1,5 @@
 import {
+  type Counters,
   NETWORK_WS_SUBPROTOCOL,
   type NetworkEvent,
   parseServerFrame,
@@ -21,7 +22,8 @@ export type WsStatus = "idle" | "connecting" | "open" | "closed";
 
 export type WsHandlers = {
   onSnapshot: (frame: SnapshotFrame) => void;
-  onEvent: (event: NetworkEvent) => void;
+  /** Live event + the counters snapshot the backend emitted alongside it. */
+  onEvent: (event: NetworkEvent, counters: Counters) => void;
   onStatusChange: (status: WsStatus) => void;
 };
 
@@ -102,7 +104,7 @@ export function connectNetworkPlatform(
       if (frame.type === "snapshot") {
         handlers.onSnapshot(frame);
       } else {
-        handlers.onEvent(frame.event);
+        handlers.onEvent(frame.event, frame.counters);
       }
     };
     socket.onclose = () => {

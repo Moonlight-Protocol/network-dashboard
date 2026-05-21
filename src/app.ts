@@ -139,9 +139,9 @@ function bootstrap() {
       providerDetails.setTopology(frame.topology);
       providerDetails.setRecent(frame.recent);
     },
-    onEvent: (event) => {
+    onEvent: (event, liveCounters) => {
       feed.append(event);
-      counters.bumpFromLiveEvent();
+      counters.render(liveCounters);
     },
   });
 }
