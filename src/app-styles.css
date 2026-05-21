@@ -56,8 +56,48 @@ main.container {
   gap: 1rem;
 }
 
-.row.hero {
-  grid-template-columns: minmax(0, 1fr) 320px;
+.row.detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(200px, 240px));
+  grid-template-areas:
+    "map  map  countries"
+    "map  map  councils"
+    "events events providers";
+}
+
+/* `min-height: 0` lets the grid cell win over each section's intrinsic
+   content height, and `overflow: hidden` clips children so the inner
+   scroll regions can take over (set on the content lists below). */
+.row.detail-grid > .section {
+  min-height: 0;
+  overflow: hidden;
+}
+.row.detail-grid > .world-map {
+  grid-area: map;
+}
+.row.detail-grid > .country-details {
+  grid-area: countries;
+}
+.row.detail-grid > .council-details {
+  grid-area: councils;
+}
+.row.detail-grid > .provider-details {
+  grid-area: providers;
+}
+.row.detail-grid > .activity-feed {
+  grid-area: events;
+}
+
+/* Each panel's content area scrolls vertically; the header stays put. */
+.country-details-panel,
+.council-details-panel,
+.provider-details-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .row.trends {
@@ -106,69 +146,18 @@ main.container {
   font-variant-numeric: tabular-nums;
 }
 
-/* §2 — Topology ───────────────────────────────────────────────────── */
+/* §3 — Activity feed ──────────────────────────────────────────────── */
 
-.topology {
+.activity-feed,
+.council-details,
+.provider-details {
   display: flex;
   flex-direction: column;
-  min-height: 540px;
-  padding: 0.5rem;
+  min-height: 420px;
+  padding: 0.75rem;
 }
-
-.topology-svg {
-  width: 100%;
-  height: 100%;
-  min-height: 520px;
-}
-
-.topology-label-center {
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  fill: #1a1d27;
-}
-
-.topology-label-council {
-  font-size: 0.75rem;
-  font-weight: 600;
-  fill: var(--text);
-}
-
-.topology-label-jurisdiction {
-  font-size: 0.65rem;
-  fill: var(--text-muted);
-}
-
-.topology-hint {
-  font-size: 0.875rem;
-  fill: var(--text-muted);
-  font-style: italic;
-}
-
-.topology-council circle {
-  transition: filter 120ms ease-out, stroke-width 120ms ease-out;
-}
-
-.topology-council:hover circle {
-  filter: brightness(1.15);
-  stroke-width: 3;
-}
-
-.topology-council.selected circle {
-  stroke: var(--primary);
-  stroke-width: 3.5;
-}
-
-.topology-pulse {
-  pointer-events: none;
-}
-
-/* §2 — Activity feed ──────────────────────────────────────────────── */
 
 .activity-feed {
-  display: flex;
-  flex-direction: column;
-  min-height: 540px;
   padding: 0.75rem;
 }
 
@@ -212,10 +201,11 @@ main.container {
 
 .activity-feed-list {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .activity-card {
@@ -418,18 +408,27 @@ main.container {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--text);
 }
 
-.council-details-pp-list li {
+.council-details-pp-button {
+  width: 100%;
   background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
   border-radius: 6px;
   padding: 0.25rem 0.5rem;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-align: left;
+  cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.council-details-pp-button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border);
 }
 
 /* §4 — Sparklines ─────────────────────────────────────────────────── */
@@ -616,6 +615,226 @@ main.container {
   fill: rgba(139, 143, 163, 0.18);
 }
 
+/* Persistent "you clicked this" highlight — kept after the pointer leaves
+   so the country-details side panel has a visible anchor. */
+.world-map-svg .world-map-country.active-country,
+.world-map-svg .world-map-country.active-country path {
+  fill: var(--primary);
+  stroke: var(--primary-hover);
+  stroke-width: 1;
+}
+
+/* §5 — Country details side panel ────────────────────────────────── */
+
+.country-details {
+  padding: 0.875rem 1.125rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.country-details-hint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.country-details-hint.hidden,
+.country-details-panel.hidden {
+  display: none;
+}
+
+.country-details-header {
+  display: flex;
+  gap: 0.625rem;
+  align-items: baseline;
+  margin-bottom: 0.625rem;
+}
+
+.country-details-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.country-details-code {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: rgba(139, 143, 163, 0.18);
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+}
+
+.country-details-empty {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.country-details-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+}
+
+.country-details-council {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.country-details-council:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--primary);
+}
+
+.country-details-council-name {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-details-council-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.country-details-council-juris {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* §3 — Provider details column ────────────────────────────────────── */
+
+.provider-details-hint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.provider-details-hint.hidden,
+.provider-details-panel.hidden {
+  display: none;
+}
+
+.provider-details-header {
+  margin-bottom: 0.625rem;
+}
+
+.provider-details-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.provider-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+  margin-bottom: 0.75rem;
+}
+
+.provider-details-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+}
+
+.provider-details-kv-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.provider-details-kv-value {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.provider-details-subheader {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.provider-details-pubkey {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text);
+  word-break: break-all;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 0.375rem 0.5rem;
+}
+
+.provider-details-council-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.provider-details-council-list li {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 0.375rem 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  overflow: hidden;
+}
+
+.provider-details-council-name {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-details-council-juris {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  flex-shrink: 0;
+}
+
 /* Popover anchored to the cursor inside the §5 host. */
 .world-map-popover {
   position: absolute;
@@ -671,7 +890,16 @@ main.container {
 }
 
 @media (max-width: 960px) {
-  .row.hero,
+  .row.detail-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    grid-template-areas:
+      "map"
+      "countries"
+      "councils"
+      "events"
+      "providers";
+  }
   .row.trends {
     grid-template-columns: 1fr;
   }
@@ -681,8 +909,9 @@ main.container {
   .sparklines {
     grid-template-columns: 1fr;
   }
-  .topology,
-  .activity-feed {
-    min-height: 360px;
+  .activity-feed,
+  .council-details,
+  .provider-details {
+    min-height: 320px;
   }
 }

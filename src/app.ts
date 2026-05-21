@@ -1,37 +1,40 @@
 /**
  * Network-dashboard SPA entry. Single page, no router, no auth.
  *
- * Renders the 5-section layout per the locked design sketch and pipes
- * frames from the public WebSocket into each section.
+ * Layout (top to bottom):
+ *   1. Counter strip
+ *   2. World map + Country details (2/3 + 1/3)
+ *   3. Detail trio — Events + Council details + Provider details (1/3 each)
+ *   4. Sparklines + Asset breakdown
  *
- *   §1 Counter strip
- *   §2 Topology + Activity feed (side-by-side)
- *   §3 Council details panel (collapsed until topology click)
- *   §4 Sparklines + Asset breakdown (side-by-side)
- *   §5 World map
+ * Drilldown chain: map country click → CountryDetails lists councils →
+ * council click → CouncilDetails populates → PP click → ProviderDetails
+ * populates.
  */
 import { renderNav } from "@moonlight/ui/nav";
 import { pageLayout } from "@moonlight/ui/layout";
 import { NETWORK_DASHBOARD_PLATFORM_URL } from "./lib/config.ts";
 import { connectNetworkPlatform } from "./lib/ws-client.ts";
 import { CounterStrip } from "./views/counter-strip.ts";
-import { Topology } from "./views/topology.ts";
 import { ActivityFeed } from "./views/activity-feed.ts";
 import { CouncilDetails } from "./views/council-details.ts";
 import { SparklineGroup } from "./views/sparklines.ts";
 import { AssetBreakdown } from "./views/asset-breakdown.ts";
 import { WorldMap } from "./views/world-map.ts";
+import { CountryDetails } from "./views/country-details.ts";
+import { ProviderDetails } from "./views/provider-details.ts";
 
 declare const __APP_VERSION__: string;
 
 function renderShell(): {
   counters: CounterStrip;
-  topology: Topology;
   feed: ActivityFeed;
   details: CouncilDetails;
   sparklines: SparklineGroup;
   assets: AssetBreakdown;
   worldMap: WorldMap;
+  countryDetails: CountryDetails;
+  providerDetails: ProviderDetails;
 } {
   const app = document.getElementById("app");
   if (!app) throw new Error("#app root not found");
@@ -42,13 +45,26 @@ function renderShell(): {
 
   const counters = new CounterStrip();
 
-  const heroRow = document.createElement("div");
-  heroRow.className = "row hero";
-  const topology = new Topology();
-  const feed = new ActivityFeed();
-  heroRow.append(topology.element(), feed.element());
-
+  // 3×3 grid:
+  //   row 1: map  map  country-details
+  //   row 2: map  map  council-details
+  //   row 3: feed feed provider-details
+  // Positions are CSS-driven via grid-template-areas; DOM order is just
+  // for accessibility / focus traversal.
+  const grid = document.createElement("div");
+  grid.className = "row detail-grid";
+  const worldMap = new WorldMap();
+  const countryDetails = new CountryDetails();
   const details = new CouncilDetails();
+  const providerDetails = new ProviderDetails();
+  const feed = new ActivityFeed();
+  grid.append(
+    worldMap.element(),
+    countryDetails.element(),
+    details.element(),
+    feed.element(),
+    providerDetails.element(),
+  );
 
   const trendsRow = document.createElement("div");
   trendsRow.className = "row trends";
@@ -56,14 +72,10 @@ function renderShell(): {
   const assets = new AssetBreakdown();
   trendsRow.append(sparklines.element(), assets.element());
 
-  const worldMap = new WorldMap();
-
   dashboard.append(
     counters.element(),
-    heroRow,
-    details.element(),
+    grid,
     trendsRow,
-    worldMap.element(),
   );
 
   const nav = renderNav({
@@ -71,16 +83,41 @@ function renderShell(): {
     version: __APP_VERSION__,
   });
   app.appendChild(pageLayout(nav, dashboard));
-  return { counters, topology, feed, details, sparklines, assets, worldMap };
+  return {
+    counters,
+    feed,
+    details,
+    sparklines,
+    assets,
+    worldMap,
+    countryDetails,
+    providerDetails,
+  };
 }
 
 function bootstrap() {
-  const { counters, topology, feed, details, sparklines, assets, worldMap } =
-    renderShell();
+  const {
+    counters,
+    feed,
+    details,
+    sparklines,
+    assets,
+    worldMap,
+    countryDetails,
+    providerDetails,
+  } = renderShell();
 
-  topology.setCouncilClickHandler((councilId) => {
+  // Drilldown wiring: country → council → PP.
+  worldMap.setOnCountryClick((countryCode) => {
+    countryDetails.select(countryCode);
+    worldMap.setSelectedCountry(countryCode);
+  });
+  countryDetails.setOnCouncilClick((councilId) => {
     details.select(councilId);
-    topology.setSelectedCouncil(councilId);
+    providerDetails.clear();
+  });
+  details.setOnPpClick((pubKey) => {
+    providerDetails.select(pubKey);
   });
 
   if (!NETWORK_DASHBOARD_PLATFORM_URL) {
@@ -92,17 +129,18 @@ function bootstrap() {
     onStatusChange: (status) => feed.setStatus(status),
     onSnapshot: (frame) => {
       counters.render(frame.counters);
-      topology.render(frame.topology);
       feed.seed(frame.recent);
       details.setTopology(frame.topology);
       details.setRollingMetrics(frame.councilRolling);
       sparklines.render(frame.sparklines);
       assets.render(frame.assetBreakdown);
       worldMap.render(frame.topology);
+      countryDetails.setTopology(frame.topology);
+      providerDetails.setTopology(frame.topology);
+      providerDetails.setRecent(frame.recent);
     },
     onEvent: (event) => {
       feed.append(event);
-      topology.pulse(event);
       counters.bumpFromLiveEvent();
     },
   });

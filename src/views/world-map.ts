@@ -25,6 +25,9 @@ import type { CouncilTopologyEntry } from "../lib/network-events.ts";
 const HOVERED_SLOT = "hovered";
 const REACHABLE_SLOT = "reachable";
 const DIMMED_SLOT = "dimmed";
+const SELECTED_COUNTRY_SLOT = "active-country";
+
+export type CountryClickHandler = (countryCode: string) => void;
 
 export class WorldMap {
   private root: HTMLElement;
@@ -36,6 +39,8 @@ export class WorldMap {
   private councils: CouncilTopologyEntry[] = [];
   private allCodes: string[] = [];
   private failed = false;
+  private onCountryClick: CountryClickHandler | null = null;
+  private selectedCountry: string | null = null;
 
   constructor() {
     this.root = document.createElement("section");
@@ -68,6 +73,28 @@ export class WorldMap {
     return this.root;
   }
 
+  /**
+   * Register a click handler. The map fires this on every country click; the
+   * consumer decides whether to toggle a side panel, navigate, etc. Pass
+   * null to clear.
+   */
+  setOnCountryClick(handler: CountryClickHandler | null): void {
+    this.onCountryClick = handler;
+  }
+
+  /**
+   * Highlight a country as the persistent "active" selection. Independent
+   * of hover. Pass null to clear.
+   */
+  setSelectedCountry(code: string | null): void {
+    if (!this.handle) {
+      this.selectedCountry = code;
+      return;
+    }
+    this.selectedCountry = code;
+    this.handle.setSlot(SELECTED_COUNTRY_SLOT, code ? [code] : []);
+  }
+
   render(topology: CouncilTopologyEntry[]): void {
     this.councils = topology;
     this.allCodes = Array.from(
@@ -95,11 +122,15 @@ export class WorldMap {
       selected: this.allCodes,
       svgUrl: "/world-map.svg",
       onHover: (code) => this.handleHover(code),
+      onSelect: (code) => this.onCountryClick?.(code),
     })
       .then((handle) => {
         this.handle = handle;
         this.mapHost.insertBefore(handle.element, this.popover);
         handle.setSelected(this.allCodes);
+        if (this.selectedCountry) {
+          handle.setSlot(SELECTED_COUNTRY_SLOT, [this.selectedCountry]);
+        }
         this.updateStatus();
         this.mapHost.addEventListener(
           "mousemove",

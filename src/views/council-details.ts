@@ -29,6 +29,8 @@ const EMPTY_METRICS: CouncilRollingMetrics = {
   settlementVolumeStroops: "0",
 };
 
+export type PpClickHandler = (publicKey: string) => void;
+
 export class CouncilDetails {
   private root: HTMLElement;
   private hint: HTMLElement;
@@ -36,6 +38,7 @@ export class CouncilDetails {
   private councilsById = new Map<string, CouncilTopologyEntry>();
   private rolling: Record<string, CouncilRollingMetrics> = {};
   private selectedCouncilId: string | null = null;
+  private onPpClick: PpClickHandler | null = null;
 
   constructor() {
     this.root = document.createElement("section");
@@ -70,6 +73,10 @@ export class CouncilDetails {
   setRollingMetrics(rolling: Record<string, CouncilRollingMetrics>): void {
     this.rolling = rolling;
     if (this.selectedCouncilId) this.paint();
+  }
+
+  setOnPpClick(handler: PpClickHandler | null): void {
+    this.onPpClick = handler;
   }
 
   select(councilId: string): void {
@@ -178,7 +185,12 @@ export class CouncilDetails {
       ppList.className = "council-details-pp-list";
       for (const pp of council.providers) {
         const li = document.createElement("li");
-        li.textContent = pp.publicKey;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "council-details-pp-button";
+        btn.textContent = pp.label?.trim() || pp.publicKey;
+        btn.addEventListener("click", () => this.onPpClick?.(pp.publicKey));
+        li.appendChild(btn);
         ppList.appendChild(li);
       }
       this.panel.appendChild(ppList);
