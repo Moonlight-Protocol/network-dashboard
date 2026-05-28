@@ -67,7 +67,7 @@ await esbuild.build({
   platform: "browser",
   target: "es2022",
   minify: isProduction,
-  sourcemap: !isProduction,
+  sourcemap: true,
   define: {
     "__APP_VERSION__": JSON.stringify(version),
   },

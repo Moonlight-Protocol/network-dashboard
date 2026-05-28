@@ -12,6 +12,7 @@ jobs:
       NETWORK_DASHBOARD_PLATFORM_URL: "${{ secrets.NETWORK_DASHBOARD_PLATFORM_URL }}"
       STELLAR_NETWORK: "${{ secrets.STELLAR_NETWORK }}"
       RPC_URL: "${{ secrets.RPC_URL }}"
+      POSTHOG_KEY: "${{ secrets.POSTHOG_PROJECT_TOKEN }}"
     steps:
       - uses: actions/checkout@v4
 
@@ -22,7 +23,7 @@ jobs:
       - name: Validate testnet config inputs
         run: |
           set -euo pipefail
-          for var in COUNCIL_PLATFORM_URL NETWORK_DASHBOARD_PLATFORM_URL STELLAR_NETWORK RPC_URL; do
+          for var in COUNCIL_PLATFORM_URL NETWORK_DASHBOARD_PLATFORM_URL STELLAR_NETWORK RPC_URL POSTHOG_KEY; do
             if [ -z "${!var}" ]; then
               echo "::error::Required env var $var is empty"
               exit 1
@@ -49,6 +50,8 @@ jobs:
               rpcUrl: Deno.env.get('RPC_URL'),
               councilPlatformUrl: Deno.env.get('COUNCIL_PLATFORM_URL'),
               networkDashboardPlatformUrl: Deno.env.get('NETWORK_DASHBOARD_PLATFORM_URL'),
+              posthogKey: Deno.env.get('POSTHOG_KEY'),
+              posthogHost: 'https://us.i.posthog.com',
             };
             Deno.writeTextFileSync('public/config.js',
               'window.__DASHBOARD_CONFIG__ = ' + JSON.stringify(config, null, 2) + ';\n');
@@ -57,6 +60,15 @@ jobs:
 
       - name: Build production bundle
         run: deno task build -- --production
+
+      - name: Upload source maps to PostHog
+        env:
+          POSTHOG_CLI_API_KEY: "${{ secrets.POSTHOG_CLI_API_KEY }}"
+          POSTHOG_CLI_PROJECT_ID: "345524"
+          POSTHOG_CLI_HOST: "https://us.posthog.com"
+        run: |
+          npx --yes @posthog/cli sourcemap inject --directory public/
+          npx --yes @posthog/cli sourcemap upload --directory public/
 
       - name: Deploy to Tigris (testnet)
         env:
@@ -68,6 +80,7 @@ jobs:
             --endpoint-url https://fly.storage.tigris.dev \
             --acl public-read \
             --delete \
+            --exclude "*.map" \
             --no-progress
           # config.js must NOT be edge-cached — it carries the WS URL and other
           # deploy-time substitutions. Other assets keep the bucket default.
@@ -86,6 +99,7 @@ jobs:
       NETWORK_DASHBOARD_PLATFORM_URL: "${{ secrets.MAINNET_NETWORK_DASHBOARD_PLATFORM_URL }}"
       STELLAR_NETWORK: "${{ secrets.MAINNET_STELLAR_NETWORK }}"
       RPC_URL: "${{ secrets.MAINNET_RPC_URL }}"
+      POSTHOG_KEY: "${{ secrets.POSTHOG_PROJECT_TOKEN }}"
     steps:
       - uses: actions/checkout@v4
 
@@ -96,7 +110,7 @@ jobs:
       - name: Validate mainnet config inputs
         run: |
           set -euo pipefail
-          for var in COUNCIL_PLATFORM_URL NETWORK_DASHBOARD_PLATFORM_URL STELLAR_NETWORK RPC_URL; do
+          for var in COUNCIL_PLATFORM_URL NETWORK_DASHBOARD_PLATFORM_URL STELLAR_NETWORK RPC_URL POSTHOG_KEY; do
             if [ -z "${!var}" ]; then
               echo "::error::Required env var $var is empty"
               exit 1
@@ -123,6 +137,8 @@ jobs:
               rpcUrl: Deno.env.get('RPC_URL'),
               councilPlatformUrl: Deno.env.get('COUNCIL_PLATFORM_URL'),
               networkDashboardPlatformUrl: Deno.env.get('NETWORK_DASHBOARD_PLATFORM_URL'),
+              posthogKey: Deno.env.get('POSTHOG_KEY'),
+              posthogHost: 'https://us.i.posthog.com',
             };
             Deno.writeTextFileSync('public/config.js',
               'window.__DASHBOARD_CONFIG__ = ' + JSON.stringify(config, null, 2) + ';\n');
@@ -131,6 +147,15 @@ jobs:
 
       - name: Build production bundle
         run: deno task build -- --production
+
+      - name: Upload source maps to PostHog
+        env:
+          POSTHOG_CLI_API_KEY: "${{ secrets.POSTHOG_CLI_API_KEY }}"
+          POSTHOG_CLI_PROJECT_ID: "345524"
+          POSTHOG_CLI_HOST: "https://us.posthog.com"
+        run: |
+          npx --yes @posthog/cli sourcemap inject --directory public/
+          npx --yes @posthog/cli sourcemap upload --directory public/
 
       - name: Deploy to Tigris (mainnet)
         env:
@@ -142,6 +167,7 @@ jobs:
             --endpoint-url https://fly.storage.tigris.dev \
             --acl public-read \
             --delete \
+            --exclude "*.map" \
             --no-progress
           # config.js must NOT be edge-cached — it carries the WS URL and other
           # deploy-time substitutions. Other assets keep the bucket default.
