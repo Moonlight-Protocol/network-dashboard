@@ -14,6 +14,7 @@
 import { renderNav } from "@moonlight/ui/nav";
 import { pageLayout } from "@moonlight/ui/layout";
 import { NETWORK_DASHBOARD_PLATFORM_URL } from "./lib/config.ts";
+import { initAnalytics } from "./lib/analytics.ts";
 import { connectNetworkPlatform } from "./lib/ws-client.ts";
 import { CounterStrip } from "./views/counter-strip.ts";
 import { ActivityFeed } from "./views/activity-feed.ts";
@@ -94,6 +95,8 @@ function renderShell(): {
     providerDetails,
   };
 }
+
+initAnalytics();
 
 function bootstrap() {
   const {

@@ -11,6 +11,8 @@ interface DashboardConfig {
   environment?: string;
   stellarNetwork?: "testnet" | "mainnet" | "standalone";
   networkDashboardPlatformUrl?: string;
+  posthogKey?: string;
+  posthogHost?: string;
 }
 
 declare global {
@@ -43,3 +45,6 @@ export const STELLAR_NETWORK = c.stellarNetwork ?? "testnet";
  */
 export const NETWORK_DASHBOARD_PLATFORM_URL: string =
   (c.networkDashboardPlatformUrl ?? "").trim();
+
+export const POSTHOG_KEY = c.posthogKey ?? "";
+export const POSTHOG_HOST = c.posthogHost ?? "https://us.i.posthog.com";

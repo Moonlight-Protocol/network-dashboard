@@ -23,7 +23,7 @@ function getCSP(): string {
   // blocked. Production allows-list the dashboard-api WS hosts the SPA
   // connects to; ws/wss schemes need explicit hosts even with 'self'.
   const connectSrc = isProd
-    ? "connect-src 'self' wss://dashboard-api.moonlightprotocol.io wss://dashboard-api-testnet.moonlightprotocol.io"
+    ? "connect-src 'self' wss://dashboard-api.moonlightprotocol.io wss://dashboard-api-testnet.moonlightprotocol.io https://us.i.posthog.com"
     : "connect-src *";
   // §4 asset-breakdown bars and a couple of inline transitions render via
   // `style="..."`. The dashboard is public + anonymous, no auth boundary
@@ -31,7 +31,7 @@ function getCSP(): string {
   const styleSrc = "style-src 'self' 'unsafe-inline'";
   return [
     "default-src 'self'",
-    "script-src 'self'",
+    "script-src 'self' https://us-assets.i.posthog.com",
     styleSrc,
     connectSrc,
   ].join("; ");
