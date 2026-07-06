@@ -2,6 +2,13 @@
  * Safe DOM helpers to avoid innerHTML XSS.
  */
 
+/**
+ * Render an error banner into `container`. `message` is the already
+ * user-facing copy (see `errorCopy` in `lib/error-copy.ts`) and IS shown —
+ * unlike the previous hardcoded-string version. Falls back to a generic
+ * sentence only when handed an empty message, so a mapper miss never renders
+ * a blank banner.
+ */
 export function renderError(
   container: HTMLElement,
   title: string,
@@ -12,10 +19,9 @@ export function renderError(
   h2.textContent = title;
   const p = document.createElement("p");
   p.className = "error-text";
-  p.textContent = "An error occurred. Please try again later.";
+  p.textContent = message.trim() ||
+    "An error occurred. Please try again later.";
   container.append(h2, p);
-  // Log actual error for debugging but don't expose to user
-  console.warn(`[renderError] ${title}: ${message}`);
 }
 
 export function escapeHtml(str: string): string {

@@ -1,5 +1,54 @@
 import { assertEquals } from "@std/assert";
-import { formatAmount, sanitizeUrl, timeAgo, truncateAddress } from "./dom.ts";
+import {
+  formatAmount,
+  renderError,
+  sanitizeUrl,
+  timeAgo,
+  truncateAddress,
+} from "./dom.ts";
+
+/**
+ * Minimal DOM stub so `renderError` (which calls `document.createElement`)
+ * can run under `deno test`, which has no live DOM. We only need the surface
+ * `renderError` touches: textContent, className, and append().
+ */
+type StubEl = {
+  tagName: string;
+  textContent: string;
+  className: string;
+  children: StubEl[];
+  append(...kids: StubEl[]): void;
+};
+
+function makeEl(tag: string): StubEl {
+  const el: StubEl = {
+    tagName: tag,
+    textContent: "",
+    className: "",
+    children: [],
+    append(...kids: StubEl[]) {
+      el.children.push(...kids);
+    },
+  };
+  return el;
+}
+
+function withStubDom(run: (container: StubEl) => void): void {
+  const original = (globalThis as Record<string, unknown>).document;
+  (globalThis as Record<string, unknown>).document = {
+    createElement: (tag: string) => makeEl(tag),
+  };
+  try {
+    run(makeEl("div"));
+  } finally {
+    (globalThis as Record<string, unknown>).document = original;
+  }
+}
+
+/** Bridge the stub container to `renderError`'s HTMLElement parameter. */
+function asEl(el: StubEl): HTMLElement {
+  return el as unknown as HTMLElement;
+}
 
 Deno.test("truncateAddress shortens long addresses", () => {
   const addr = "CAF7DFHTPSYIW5543WBXJODZCDI5WF5SSHBXGMPKFOYPFRDVWFDNBGX7";
@@ -41,4 +90,24 @@ Deno.test("sanitizeUrl rejects javascript: protocol", () => {
 
 Deno.test("sanitizeUrl rejects invalid URLs", () => {
   assertEquals(sanitizeUrl("not a url"), null);
+});
+
+Deno.test("renderError displays the passed (mapped) message, not a hardcoded string", () => {
+  withStubDom((container) => {
+    renderError(
+      asEl(container),
+      "Live feed",
+      "Lost connection — reconnecting…",
+    );
+    const p = container.children.find((c) => c.className === "error-text");
+    assertEquals(p?.textContent, "Lost connection — reconnecting…");
+  });
+});
+
+Deno.test("renderError falls back to a generic sentence on an empty message", () => {
+  withStubDom((container) => {
+    renderError(asEl(container), "Live feed", "   ");
+    const p = container.children.find((c) => c.className === "error-text");
+    assertEquals(p?.textContent, "An error occurred. Please try again later.");
+  });
 });
