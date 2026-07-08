@@ -91,7 +91,25 @@ export type LiveFrame = {
   counters: Counters;
 };
 
-export type ServerFrame = SnapshotFrame | LiveFrame;
+/**
+ * Client-safe structured error surfaced by the backend (e.g. a
+ * council-platform topology refresh failed, so the live view may be stale).
+ * Matches the error-bubbling standard's `{ code, source, message }` shape.
+ * Shape-agnostic by design: whichever backend produced it, the SPA maps on
+ * `code` alone.
+ */
+export type StructuredError = {
+  code: string;
+  source: string;
+  message: string;
+};
+
+export type ErrorFrame = {
+  type: "error";
+  error: StructuredError;
+};
+
+export type ServerFrame = SnapshotFrame | LiveFrame | ErrorFrame;
 
 export const NETWORK_WS_SUBPROTOCOL = "moonlight.network.v2";
 
@@ -119,6 +137,15 @@ export function parseServerFrame(value: unknown): ServerFrame | null {
   if (v.type === "event") {
     if (typeof v.event !== "object" || v.event === null) return null;
     return value as LiveFrame;
+  }
+  if (v.type === "error") {
+    const err = v.error;
+    if (typeof err !== "object" || err === null) return null;
+    const e = err as Record<string, unknown>;
+    if (typeof e.code !== "string" || typeof e.message !== "string") {
+      return null;
+    }
+    return value as ErrorFrame;
   }
   return null;
 }

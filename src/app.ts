@@ -16,6 +16,8 @@ import { pageLayout } from "@moonlight/ui/layout";
 import { NETWORK_DASHBOARD_PLATFORM_URL } from "./lib/config.ts";
 import { initAnalytics } from "./lib/analytics.ts";
 import { connectNetworkPlatform } from "./lib/ws-client.ts";
+import { renderError } from "./lib/dom.ts";
+import { errorCopy, TRANSPORT_ERROR_CODES } from "./lib/error-copy.ts";
 import { CounterStrip } from "./views/counter-strip.ts";
 import { ActivityFeed } from "./views/activity-feed.ts";
 import { CouncilDetails } from "./views/council-details.ts";
@@ -36,6 +38,7 @@ function renderShell(): {
   worldMap: WorldMap;
   countryDetails: CountryDetails;
   providerDetails: ProviderDetails;
+  banner: HTMLElement;
 } {
   const app = document.getElementById("app");
   if (!app) throw new Error("#app root not found");
@@ -43,6 +46,15 @@ function renderShell(): {
 
   const dashboard = document.createElement("div");
   dashboard.className = "dashboard";
+
+  // Connection / degraded-data banner. Hidden until an error surfaces —
+  // either a WS transport failure or a structured error frame the backend
+  // pushes over the socket.
+  const banner = document.createElement("div");
+  banner.className = "connection-banner";
+  banner.hidden = true;
+  banner.setAttribute("role", "status");
+  banner.setAttribute("aria-live", "polite");
 
   const counters = new CounterStrip();
 
@@ -74,6 +86,7 @@ function renderShell(): {
   trendsRow.append(sparklines.element(), assets.element());
 
   dashboard.append(
+    banner,
     counters.element(),
     grid,
     trendsRow,
@@ -93,6 +106,7 @@ function renderShell(): {
     worldMap,
     countryDetails,
     providerDetails,
+    banner,
   };
 }
 
@@ -108,7 +122,17 @@ function bootstrap() {
     worldMap,
     countryDetails,
     providerDetails,
+    banner,
   } = renderShell();
+
+  const showBanner = (title: string, copy: string) => {
+    banner.hidden = false;
+    renderError(banner, title, copy);
+  };
+  const clearBanner = () => {
+    banner.hidden = true;
+    banner.textContent = "";
+  };
 
   // Drilldown wiring: country → council → PP.
   worldMap.setOnCountryClick((countryCode) => {
@@ -125,11 +149,31 @@ function bootstrap() {
 
   if (!NETWORK_DASHBOARD_PLATFORM_URL) {
     feed.setStatus("closed");
+    showBanner(
+      "Live feed",
+      errorCopy({ code: TRANSPORT_ERROR_CODES.NOT_CONFIGURED }),
+    );
     return;
   }
 
   connectNetworkPlatform(NETWORK_DASHBOARD_PLATFORM_URL, {
-    onStatusChange: (status) => feed.setStatus(status),
+    onStatusChange: (status) => {
+      feed.setStatus(status);
+      // Surface a real, mapped message on a dropped/failed connection; clear
+      // it once the socket is live again.
+      if (status === "open") {
+        clearBanner();
+      } else if (status === "closed") {
+        showBanner(
+          "Live feed",
+          errorCopy({ code: TRANSPORT_ERROR_CODES.DISCONNECTED }),
+        );
+      }
+    },
+    // A structured error frame from the backend: the socket is still live but
+    // some data may be degraded (e.g. council-platform topology refresh
+    // failed). Map its code to operator copy.
+    onError: (error) => showBanner("Network data", errorCopy(error)),
     onSnapshot: (frame) => {
       counters.render(frame.counters);
       feed.seed(frame.recent);

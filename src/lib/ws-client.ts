@@ -4,6 +4,7 @@ import {
   type NetworkEvent,
   parseServerFrame,
   type SnapshotFrame,
+  type StructuredError,
 } from "./network-events.ts";
 
 /**
@@ -25,6 +26,13 @@ export type WsHandlers = {
   /** Live event + the counters snapshot the backend emitted alongside it. */
   onEvent: (event: NetworkEvent, counters: Counters) => void;
   onStatusChange: (status: WsStatus) => void;
+  /**
+   * A structured error frame the backend pushed over the socket (e.g. a
+   * failed council-platform topology refresh). Distinct from transport
+   * status: the connection is still live, but some backend data may be
+   * degraded. Optional so existing callers keep compiling.
+   */
+  onError?: (error: StructuredError) => void;
 };
 
 const INITIAL_BACKOFF_MS = 500;
@@ -101,10 +109,16 @@ export function connectNetworkPlatform(
       }
       const frame = parseServerFrame(parsed);
       if (frame === null) return;
-      if (frame.type === "snapshot") {
-        handlers.onSnapshot(frame);
-      } else {
-        handlers.onEvent(frame.event, frame.counters);
+      switch (frame.type) {
+        case "snapshot":
+          handlers.onSnapshot(frame);
+          break;
+        case "event":
+          handlers.onEvent(frame.event, frame.counters);
+          break;
+        case "error":
+          handlers.onError?.(frame.error);
+          break;
       }
     };
     socket.onclose = () => {
