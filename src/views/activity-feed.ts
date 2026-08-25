@@ -169,7 +169,27 @@ export class ActivityFeed {
       body.appendChild(d);
     }
 
-    card.append(glyph, body);
+    const footer = document.createElement("footer");
+    const timeRow = document.createElement("div");
+    timeRow.textContent = event.occurredAt; // TODO: parse to Date, format as ISO8601
+    const ledgerRow = document.createElement("div");
+    ledgerRow.textContent = event.ledger.toString();
+    const linkRow = document.createElement("div");
+    linkRow.textContent = "view on: "
+    const linkEl = document.createElement("a");
+    linkEl.target = "_blank";
+    linkEl.href = `https://stellar.expert/explorer/${
+      {
+        testnet: "testnet",
+        mainnet: "public",
+        standalone: "STANDALONE-NOT-SUPPORTED"
+      }[window.__DASHBOARD_CONFIG__.stellarNetwork]
+    }/tx/${JSON.stringify(event.payload)}`; // TODO: is `transactionId` in there? Use it.
+    linkEl.textContent = "Stellar.Expert ↗";
+    linkRow.append(linkEl);
+    footer.append(timeRow, ledgerRow, linkRow);
+
+    card.append(glyph, body, footer);
     this.list.prepend(card);
 
     while (this.list.childElementCount > MAX_VISIBLE) {
