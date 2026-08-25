@@ -12,6 +12,7 @@ jobs:
       NETWORK_DASHBOARD_PLATFORM_URL: "${{ secrets.NETWORK_DASHBOARD_PLATFORM_URL }}"
       STELLAR_NETWORK: "${{ secrets.STELLAR_NETWORK }}"
       RPC_URL: "${{ secrets.RPC_URL }}"
+      EXPLORER_BASE_URL: "${{ secrets.EXPLORER_BASE_URL }}"
       POSTHOG_KEY: "${{ secrets.POSTHOG_PROJECT_TOKEN }}"
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +41,14 @@ jobs:
               *) echo "::error::$var must start with https:// (got: $val)"; exit 1 ;;
             esac
           done
+          # EXPLORER_BASE_URL is optional (when unset the SPA renders no
+          # explorer links); when set it must be https.
+          if [ -n "$EXPLORER_BASE_URL" ]; then
+            case "$EXPLORER_BASE_URL" in
+              https://*) ;;
+              *) echo "::error::EXPLORER_BASE_URL must start with https:// when set (got: $EXPLORER_BASE_URL)"; exit 1 ;;
+            esac
+          fi
 
       - name: Generate production config
         run: |
@@ -50,6 +59,7 @@ jobs:
               rpcUrl: Deno.env.get('RPC_URL'),
               councilPlatformUrl: Deno.env.get('COUNCIL_PLATFORM_URL'),
               networkDashboardPlatformUrl: Deno.env.get('NETWORK_DASHBOARD_PLATFORM_URL'),
+              explorerBaseUrl: Deno.env.get('EXPLORER_BASE_URL'),
               posthogKey: Deno.env.get('POSTHOG_KEY'),
               posthogHost: 'https://us.i.posthog.com',
             };
@@ -99,6 +109,7 @@ jobs:
       NETWORK_DASHBOARD_PLATFORM_URL: "${{ secrets.MAINNET_NETWORK_DASHBOARD_PLATFORM_URL }}"
       STELLAR_NETWORK: "${{ secrets.MAINNET_STELLAR_NETWORK }}"
       RPC_URL: "${{ secrets.MAINNET_RPC_URL }}"
+      EXPLORER_BASE_URL: "${{ secrets.MAINNET_EXPLORER_BASE_URL }}"
       POSTHOG_KEY: "${{ secrets.POSTHOG_PROJECT_TOKEN }}"
     steps:
       - uses: actions/checkout@v4
@@ -127,6 +138,14 @@ jobs:
               *) echo "::error::$var must start with https:// (got: $val)"; exit 1 ;;
             esac
           done
+          # EXPLORER_BASE_URL is optional (when unset the SPA renders no
+          # explorer links); when set it must be https.
+          if [ -n "$EXPLORER_BASE_URL" ]; then
+            case "$EXPLORER_BASE_URL" in
+              https://*) ;;
+              *) echo "::error::EXPLORER_BASE_URL must start with https:// when set (got: $EXPLORER_BASE_URL)"; exit 1 ;;
+            esac
+          fi
 
       - name: Generate mainnet config
         run: |
@@ -137,6 +156,7 @@ jobs:
               rpcUrl: Deno.env.get('RPC_URL'),
               councilPlatformUrl: Deno.env.get('COUNCIL_PLATFORM_URL'),
               networkDashboardPlatformUrl: Deno.env.get('NETWORK_DASHBOARD_PLATFORM_URL'),
+              explorerBaseUrl: Deno.env.get('EXPLORER_BASE_URL'),
               posthogKey: Deno.env.get('POSTHOG_KEY'),
               posthogHost: 'https://us.i.posthog.com',
             };

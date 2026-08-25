@@ -23,6 +23,12 @@ export type NetworkEvent = {
   councilId: string;
   councilName: string | null;
   ledger: number;
+  /**
+   * Hash of the transaction that emitted the event. Optional: backends
+   * predating the field send frames without it, and those must keep
+   * narrowing; views degrade (no explorer link) rather than reject.
+   */
+  txHash?: string;
   occurredAt: string;
   payload: Record<string, unknown>;
 };

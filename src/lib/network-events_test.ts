@@ -30,6 +30,48 @@ Deno.test("parseServerFrame rejects an error frame missing code/message", () => 
   );
 });
 
+Deno.test("parseServerFrame accepts event frames with and without txHash", () => {
+  const counters = {
+    councils: 1,
+    activePPs: 1,
+    eventsLast24h: 1,
+    assetsRegistered: 0,
+    throughputPerMin: 0,
+    latencyMs: null,
+  };
+  const base = {
+    id: "e1",
+    kind: "provider_added",
+    councilId: "C",
+    councilName: null,
+    ledger: 1,
+    occurredAt: new Date(0).toISOString(),
+    payload: {},
+  };
+
+  // Old backend: no txHash on the event. Must still narrow.
+  const withoutHash = parseServerFrame({
+    type: "event",
+    event: base,
+    counters,
+  });
+  assert(withoutHash !== null);
+  if (withoutHash.type === "event") {
+    assertEquals(withoutHash.event.txHash, undefined);
+  }
+
+  // New backend: txHash passes through.
+  const withHash = parseServerFrame({
+    type: "event",
+    event: { ...base, txHash: "deadbeef" },
+    counters,
+  });
+  assert(withHash !== null);
+  if (withHash.type === "event") {
+    assertEquals(withHash.event.txHash, "deadbeef");
+  }
+});
+
 Deno.test("parseServerFrame still rejects unknown frame types", () => {
   assertEquals(parseServerFrame({ type: "nope" }), null);
   assertEquals(parseServerFrame(null), null);
