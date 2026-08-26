@@ -92,14 +92,12 @@ function buildFooter(event: NetworkEvent): HTMLElement {
 
   const url = event.txHash !== undefined ? explorerTxUrl(event.txHash) : null;
   if (url !== null) {
-    const linkRow = document.createElement("div");
     const linkEl = document.createElement("a");
     linkEl.href = url;
     linkEl.target = "_blank";
     linkEl.rel = "noopener noreferrer";
     linkEl.textContent = "View transaction ↗";
-    linkRow.append(linkEl);
-    footer.append(linkRow);
+    footer.append(linkEl);
   }
 
   return footer;
