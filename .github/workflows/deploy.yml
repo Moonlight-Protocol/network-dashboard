@@ -24,7 +24,7 @@ jobs:
       - name: Validate testnet config inputs
         run: |
           set -euo pipefail
-          for var in COUNCIL_PLATFORM_URL NETWORK_DASHBOARD_PLATFORM_URL STELLAR_NETWORK RPC_URL POSTHOG_KEY; do
+          for var in COUNCIL_PLATFORM_URL NETWORK_DASHBOARD_PLATFORM_URL STELLAR_NETWORK RPC_URL EXPLORER_BASE_URL POSTHOG_KEY; do
             if [ -z "${!var}" ]; then
               echo "::error::Required env var $var is empty"
               exit 1
@@ -34,21 +34,13 @@ jobs:
             testnet|mainnet) ;;
             *) echo "::error::STELLAR_NETWORK must be 'testnet' or 'mainnet' (got: $STELLAR_NETWORK)"; exit 1 ;;
           esac
-          for var in COUNCIL_PLATFORM_URL NETWORK_DASHBOARD_PLATFORM_URL RPC_URL; do
+          for var in COUNCIL_PLATFORM_URL NETWORK_DASHBOARD_PLATFORM_URL RPC_URL EXPLORER_BASE_URL; do
             val="${!var}"
             case "$val" in
               https://*) ;;
               *) echo "::error::$var must start with https:// (got: $val)"; exit 1 ;;
             esac
           done
-          # EXPLORER_BASE_URL is optional (when unset the SPA renders no
-          # explorer links); when set it must be https.
-          if [ -n "$EXPLORER_BASE_URL" ]; then
-            case "$EXPLORER_BASE_URL" in
-              https://*) ;;
-              *) echo "::error::EXPLORER_BASE_URL must start with https:// when set (got: $EXPLORER_BASE_URL)"; exit 1 ;;
-            esac
-          fi
 
       - name: Generate production config
         run: |
@@ -121,7 +113,7 @@ jobs:
       - name: Validate mainnet config inputs
         run: |
           set -euo pipefail
-          for var in COUNCIL_PLATFORM_URL NETWORK_DASHBOARD_PLATFORM_URL STELLAR_NETWORK RPC_URL POSTHOG_KEY; do
+          for var in COUNCIL_PLATFORM_URL NETWORK_DASHBOARD_PLATFORM_URL STELLAR_NETWORK RPC_URL EXPLORER_BASE_URL POSTHOG_KEY; do
             if [ -z "${!var}" ]; then
               echo "::error::Required env var $var is empty"
               exit 1
@@ -131,21 +123,13 @@ jobs:
             testnet|mainnet) ;;
             *) echo "::error::STELLAR_NETWORK must be 'testnet' or 'mainnet' (got: $STELLAR_NETWORK)"; exit 1 ;;
           esac
-          for var in COUNCIL_PLATFORM_URL NETWORK_DASHBOARD_PLATFORM_URL RPC_URL; do
+          for var in COUNCIL_PLATFORM_URL NETWORK_DASHBOARD_PLATFORM_URL RPC_URL EXPLORER_BASE_URL; do
             val="${!var}"
             case "$val" in
               https://*) ;;
               *) echo "::error::$var must start with https:// (got: $val)"; exit 1 ;;
             esac
           done
-          # EXPLORER_BASE_URL is optional (when unset the SPA renders no
-          # explorer links); when set it must be https.
-          if [ -n "$EXPLORER_BASE_URL" ]; then
-            case "$EXPLORER_BASE_URL" in
-              https://*) ;;
-              *) echo "::error::EXPLORER_BASE_URL must start with https:// when set (got: $EXPLORER_BASE_URL)"; exit 1 ;;
-            esac
-          fi
 
       - name: Generate mainnet config
         run: |
