@@ -46,6 +46,16 @@ export function formatPercent(pct: number): string {
 }
 
 /**
+ * Normalize a timestamp to compact ISO 8601 (second precision, UTC) for
+ * the activity-card footer. Falls back to the raw input if parsing fails.
+ */
+export function formatIsoTimestamp(iso: string): string {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return iso;
+  return new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+/**
  * "Deployed Nd ago" / "Nh ago" copy for the council details panel header.
  * Falls back to the raw ISO if parsing fails.
  */

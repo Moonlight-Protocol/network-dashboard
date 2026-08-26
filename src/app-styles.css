@@ -289,32 +289,44 @@ main.container {
   color: var(--text);
 }
 
+.activity-card.kind-council_formed a,
 .activity-card.kind-council_formed .activity-glyph {
   color: var(--kind-council);
 }
+.activity-card.kind-provider_added a,
 .activity-card.kind-provider_added .activity-glyph {
   color: var(--kind-pp-add);
 }
+.activity-card.kind-provider_removed a,
 .activity-card.kind-provider_removed .activity-glyph {
   color: var(--kind-pp-remove);
 }
+.activity-card.kind-asset_registered a,
 .activity-card.kind-asset_registered .activity-glyph {
   color: var(--kind-asset);
 }
+.activity-card.kind-channel_settlement a,
 .activity-card.kind-channel_settlement .activity-glyph {
   color: var(--kind-settlement);
 }
+.activity-card.kind-channel_deposit a,
 .activity-card.kind-channel_deposit .activity-glyph {
   color: var(--kind-deposit);
 }
+.activity-card.kind-channel_bundle a,
 .activity-card.kind-channel_bundle .activity-glyph {
   color: var(--kind-bundle);
 }
 
+.activity-card footer,
 .activity-body {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
+}
+
+.activity-body {
+  flex: 1;
   min-width: 0;
 }
 
@@ -336,6 +348,13 @@ main.container {
   font-size: 0.7rem;
   color: var(--text-muted);
   font-family: var(--font-mono);
+}
+
+.activity-card footer {
+  align-self: flex-end;
+  text-align: right;
+  font-size: 0.7rem;
+  color: var(--text-muted);
 }
 
 /* §3 — Council details ────────────────────────────────────────────── */

@@ -1,6 +1,8 @@
 import type { NetworkEvent, NetworkEventKind } from "../lib/network-events.ts";
 import { truncateAddress } from "../lib/dom.ts";
 import { formatAmount } from "../lib/dom.ts";
+import { explorerTxUrl } from "../lib/config.ts";
+import { formatIsoTimestamp } from "../lib/format.ts";
 import type { WsStatus } from "../lib/ws-client.ts";
 
 /**
@@ -71,6 +73,34 @@ function detailFor(event: NetworkEvent): string {
         ? `via ${truncateAddress(p.providerPublicKey)}`
         : "";
   }
+}
+
+/**
+ * Card footer: timestamp, ledger, and a transaction link when the event
+ * carries a txHash and an explorer base is configured.
+ */
+function buildFooter(event: NetworkEvent): HTMLElement {
+  const footer = document.createElement("footer");
+
+  const timeRow = document.createElement("div");
+  timeRow.textContent = formatIsoTimestamp(event.occurredAt);
+
+  const ledgerRow = document.createElement("div");
+  ledgerRow.textContent = `Ledger ${event.ledger}`;
+
+  footer.append(timeRow, ledgerRow);
+
+  const url = event.txHash !== undefined ? explorerTxUrl(event.txHash) : null;
+  if (url !== null) {
+    const linkEl = document.createElement("a");
+    linkEl.href = url;
+    linkEl.target = "_blank";
+    linkEl.rel = "noopener noreferrer";
+    linkEl.textContent = "View transaction ↗";
+    footer.append(linkEl);
+  }
+
+  return footer;
 }
 
 export class ActivityFeed {
@@ -169,7 +199,7 @@ export class ActivityFeed {
       body.appendChild(d);
     }
 
-    card.append(glyph, body);
+    card.append(glyph, body, buildFooter(event));
     this.list.prepend(card);
 
     while (this.list.childElementCount > MAX_VISIBLE) {

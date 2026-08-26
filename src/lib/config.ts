@@ -11,6 +11,7 @@ interface DashboardConfig {
   environment?: string;
   stellarNetwork?: "testnet" | "mainnet" | "standalone";
   networkDashboardPlatformUrl?: string;
+  explorerBaseUrl?: string;
   posthogKey?: string;
   posthogHost?: string;
 }
@@ -45,6 +46,22 @@ export const STELLAR_NETWORK = c.stellarNetwork ?? "testnet";
  */
 export const NETWORK_DASHBOARD_PLATFORM_URL: string =
   (c.networkDashboardPlatformUrl ?? "").trim();
+
+/**
+ * Base URL of the chain explorer's network-scoped page (e.g.
+ * "https://stellar.expert/explorer/testnet"). Empty means "no explorer
+ * configured": views render explorer links only when a base is set.
+ */
+export const EXPLORER_BASE_URL: string = (c.explorerBaseUrl ?? "").trim();
+
+/**
+ * Explorer URL for a transaction, or null when no explorer base is
+ * configured (e.g. standalone networks Stellar Expert can't resolve).
+ */
+export function explorerTxUrl(txHash: string): string | null {
+  if (!EXPLORER_BASE_URL) return null;
+  return `${EXPLORER_BASE_URL.replace(/\/+$/, "")}/tx/${txHash}`;
+}
 
 export const POSTHOG_KEY = c.posthogKey ?? "";
 export const POSTHOG_HOST = c.posthogHost ?? "https://us.i.posthog.com";
