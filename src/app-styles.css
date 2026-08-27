@@ -357,6 +357,37 @@ main.container {
   color: var(--text-muted);
 }
 
+/* Bundle-grouped cards: op counts line + proportional bottom bar */
+
+:root {
+  --op-deposit: var(--kind-deposit);
+  --op-send: #60a5fa;
+  --op-withdraw: #4ade80;
+}
+
+.activity-ops {
+  font-size: 0.8rem;
+}
+.activity-ops .op-deposit {
+  color: var(--op-deposit);
+}
+.activity-ops .op-send {
+  color: var(--op-send);
+}
+.activity-ops .op-withdraw {
+  color: var(--op-withdraw);
+}
+.activity-ops .op-sep {
+  color: var(--text-muted);
+}
+
+.activity-card.bundle-group {
+  border-left-color: transparent;
+}
+.activity-card.bundle-group a {
+  color: var(--text-muted);
+}
+
 /* §3 — Council details ────────────────────────────────────────────── */
 
 .council-details {
