@@ -75,6 +75,56 @@ function detailFor(event: NetworkEvent): string {
   }
 }
 
+const MONEY_KINDS = new Set<NetworkEventKind>([
+  "channel_deposit",
+  "channel_bundle",
+  "channel_settlement",
+]);
+
+type OpCounts = { deposits: number; sends: number; withdraws: number };
+
+function opField(kind: NetworkEventKind): keyof OpCounts {
+  if (kind === "channel_deposit") return "deposits";
+  if (kind === "channel_settlement") return "withdraws";
+  return "sends";
+}
+
+const OP_META: Array<[keyof OpCounts, string, string]> = [
+  ["deposits", "op-deposit", "deposit"],
+  ["sends", "op-send", "send"],
+  ["withdraws", "op-withdraw", "withdraw"],
+];
+
+function renderOps(row: HTMLElement, counts: OpCounts): void {
+  row.textContent = "";
+  let first = true;
+  for (const [field, cls, noun] of OP_META) {
+    const n = counts[field];
+    if (n === 0) continue;
+    if (!first) {
+      const sep = document.createElement("span");
+      sep.className = "op-sep";
+      sep.textContent = ", ";
+      row.appendChild(sep);
+    }
+    first = false;
+    const span = document.createElement("span");
+    span.className = cls;
+    span.textContent = `${n} ${noun}${n === 1 ? "" : "s"}`;
+    row.appendChild(span);
+  }
+}
+
+function renderOpBar(bar: HTMLElement, counts: OpCounts): void {
+  bar.textContent = "";
+  for (const [field, cls] of OP_META) {
+    const seg = document.createElement("span");
+    seg.className = cls;
+    seg.style.flexGrow = String(counts[field]);
+    bar.appendChild(seg);
+  }
+}
+
 /**
  * Card footer: timestamp, ledger, and a transaction link when the event
  * carries a txHash and an explorer base is configured.
@@ -109,6 +159,16 @@ export class ActivityFeed {
   private statusEl: HTMLSpanElement;
   private seen = new Set<string>();
   private timers = new Map<string, number>();
+  private groups = new Map<
+    string,
+    {
+      card: HTMLElement;
+      counts: OpCounts;
+      ops: HTMLElement;
+      bar: HTMLElement;
+      title: HTMLElement;
+    }
+  >();
 
   constructor() {
     this.root = document.createElement("aside");
@@ -163,11 +223,17 @@ export class ActivityFeed {
     this.seen.clear();
     for (const t of this.timers.values()) clearTimeout(t);
     this.timers.clear();
+    this.groups.clear();
   }
 
   private prepend(event: NetworkEvent): void {
     if (this.seen.has(event.id)) return;
     this.seen.add(event.id);
+
+    if (MONEY_KINDS.has(event.kind) && event.txHash) {
+      this.upsertBundleCard(event);
+      return;
+    }
 
     const card = document.createElement("article");
     card.className = `activity-card kind-${event.kind}`;
@@ -202,11 +268,86 @@ export class ActivityFeed {
     card.append(glyph, body, buildFooter(event));
     this.list.prepend(card);
 
+    this.trimAndExpire(card, event.id);
+  }
+
+  /**
+   * One card per bundle execution: deposit, bundle, and settlement events
+   * sharing a txHash merge into a single card that shows the operation
+   * counts and a proportional bottom bar. The bundle event's payer names
+   * the card; the council row and footer come from the first event seen.
+   */
+  private upsertBundleCard(event: NetworkEvent): void {
+    const key = event.txHash as string;
+    const existing = this.groups.get(key);
+    if (existing) {
+      existing.counts[opField(event.kind)] += 1;
+      if (
+        event.kind === "channel_bundle" &&
+        typeof event.payload.providerPublicKey === "string"
+      ) {
+        existing.title.textContent = `via ${
+          truncateAddress(event.payload.providerPublicKey)
+        }`;
+      }
+      renderOps(existing.ops, existing.counts);
+      renderOpBar(existing.bar, existing.counts);
+      return;
+    }
+
+    const counts: OpCounts = { deposits: 0, sends: 0, withdraws: 0 };
+    counts[opField(event.kind)] += 1;
+
+    const card = document.createElement("article");
+    card.className = "activity-card kind-channel_bundle bundle-group";
+    card.dataset.eventId = event.id;
+    card.style.setProperty("--ttl-ms", `${CARD_TTL_MS}ms`);
+
+    const glyph = document.createElement("span");
+    glyph.className = "activity-glyph";
+    glyph.textContent = KIND_GLYPH.channel_bundle;
+
+    const body = document.createElement("div");
+    body.className = "activity-body";
+
+    const titleRow = document.createElement("div");
+    titleRow.className = "activity-title";
+    titleRow.textContent = event.kind === "channel_bundle" &&
+        typeof event.payload.providerPublicKey === "string"
+      ? `via ${truncateAddress(event.payload.providerPublicKey)}`
+      : "Bundle";
+
+    const councilRow = document.createElement("div");
+    councilRow.className = "activity-council";
+    councilRow.textContent = councilLabel(event);
+
+    const opsRow = document.createElement("div");
+    opsRow.className = "activity-ops";
+    renderOps(opsRow, counts);
+
+    body.append(titleRow, councilRow, opsRow);
+
+    const bar = document.createElement("div");
+    bar.className = "activity-opbar";
+    renderOpBar(bar, counts);
+
+    card.append(glyph, body, buildFooter(event), bar);
+    this.list.prepend(card);
+    this.groups.set(key, { card, counts, ops: opsRow, bar, title: titleRow });
+    this.trimAndExpire(card, event.id, key);
+  }
+
+  private trimAndExpire(
+    card: HTMLElement,
+    eventId: string,
+    groupKey?: string,
+  ): void {
     while (this.list.childElementCount > MAX_VISIBLE) {
       const last = this.list.lastElementChild;
       if (!last) break;
-      const eventId = (last as HTMLElement).dataset.eventId;
-      if (eventId) this.dropTimer(eventId);
+      const lastId = (last as HTMLElement).dataset.eventId;
+      if (lastId) this.dropTimer(lastId);
+      this.dropGroupByCard(last as HTMLElement);
       last.remove();
     }
 
@@ -214,11 +355,21 @@ export class ActivityFeed {
       card.classList.add("fading");
       const finalizer = globalThis.setTimeout(() => {
         card.remove();
-        this.timers.delete(event.id);
+        if (groupKey) this.groups.delete(groupKey);
+        this.timers.delete(eventId);
       }, 600);
-      this.timers.set(event.id, finalizer);
+      this.timers.set(eventId, finalizer);
     }, CARD_TTL_MS);
-    this.timers.set(event.id, timer);
+    this.timers.set(eventId, timer);
+  }
+
+  private dropGroupByCard(card: HTMLElement): void {
+    for (const [key, group] of this.groups) {
+      if (group.card === card) {
+        this.groups.delete(key);
+        return;
+      }
+    }
   }
 
   private dropTimer(eventId: string): void {
