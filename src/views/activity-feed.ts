@@ -166,7 +166,7 @@ export class ActivityFeed {
       counts: OpCounts;
       ops: HTMLElement;
       bar: HTMLElement;
-      title: HTMLElement;
+      via: HTMLElement;
     }
   >();
 
@@ -286,7 +286,7 @@ export class ActivityFeed {
         event.kind === "channel_bundle" &&
         typeof event.payload.providerPublicKey === "string"
       ) {
-        existing.title.textContent = `via ${
+        existing.via.textContent = `via ${
           truncateAddress(event.payload.providerPublicKey)
         }`;
       }
@@ -312,20 +312,28 @@ export class ActivityFeed {
 
     const titleRow = document.createElement("div");
     titleRow.className = "activity-title";
-    titleRow.textContent = event.kind === "channel_bundle" &&
-        typeof event.payload.providerPublicKey === "string"
-      ? `via ${truncateAddress(event.payload.providerPublicKey)}`
-      : "Bundle";
+    titleRow.textContent = "Bundle";
 
     const councilRow = document.createElement("div");
     councilRow.className = "activity-council";
     councilRow.textContent = councilLabel(event);
 
+    const viaRow = document.createElement("div");
+    viaRow.className = "activity-detail";
+    if (
+      event.kind === "channel_bundle" &&
+      typeof event.payload.providerPublicKey === "string"
+    ) {
+      viaRow.textContent = `via ${
+        truncateAddress(event.payload.providerPublicKey)
+      }`;
+    }
+
     const opsRow = document.createElement("div");
     opsRow.className = "activity-ops";
     renderOps(opsRow, counts);
 
-    body.append(titleRow, councilRow, opsRow);
+    body.append(titleRow, councilRow, viaRow, opsRow);
 
     const bar = document.createElement("div");
     bar.className = "activity-opbar";
@@ -333,7 +341,7 @@ export class ActivityFeed {
 
     card.append(glyph, body, buildFooter(event), bar);
     this.list.prepend(card);
-    this.groups.set(key, { card, counts, ops: opsRow, bar, title: titleRow });
+    this.groups.set(key, { card, counts, ops: opsRow, bar, via: viaRow });
     this.trimAndExpire(card, event.id, key);
   }
 
