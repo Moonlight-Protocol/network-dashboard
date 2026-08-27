@@ -89,39 +89,29 @@ function opField(kind: NetworkEventKind): keyof OpCounts {
   return "sends";
 }
 
-const OP_META: Array<[keyof OpCounts, string, string]> = [
-  ["deposits", "op-deposit", "deposit"],
-  ["sends", "op-send", "send"],
-  ["withdraws", "op-withdraw", "withdraw"],
+const OP_META: Array<[keyof OpCounts, string, string, string]> = [
+  ["deposits", "op-deposit", "Deposit", "\u2199"],
+  ["sends", "op-send", "Send", "\u21aa"],
+  ["withdraws", "op-withdraw", "Withdraw", "\u2197"],
 ];
 
 function renderOps(row: HTMLElement, counts: OpCounts): void {
   row.textContent = "";
   let first = true;
-  for (const [field, cls, noun] of OP_META) {
+  for (const [field, cls, noun, icon] of OP_META) {
     const n = counts[field];
     if (n === 0) continue;
     if (!first) {
       const sep = document.createElement("span");
       sep.className = "op-sep";
-      sep.textContent = ", ";
+      sep.textContent = " ";
       row.appendChild(sep);
     }
     first = false;
     const span = document.createElement("span");
     span.className = cls;
-    span.textContent = `${n} ${noun}${n === 1 ? "" : "s"}`;
+    span.textContent = `${icon} ${n} ${noun}`;
     row.appendChild(span);
-  }
-}
-
-function renderOpBar(bar: HTMLElement, counts: OpCounts): void {
-  bar.textContent = "";
-  for (const [field, cls] of OP_META) {
-    const seg = document.createElement("span");
-    seg.className = cls;
-    seg.style.flexGrow = String(counts[field]);
-    bar.appendChild(seg);
   }
 }
 
@@ -165,7 +155,6 @@ export class ActivityFeed {
       card: HTMLElement;
       counts: OpCounts;
       ops: HTMLElement;
-      bar: HTMLElement;
       via: HTMLElement;
     }
   >();
@@ -291,7 +280,6 @@ export class ActivityFeed {
         }`;
       }
       renderOps(existing.ops, existing.counts);
-      renderOpBar(existing.bar, existing.counts);
       return;
     }
 
@@ -303,16 +291,12 @@ export class ActivityFeed {
     card.dataset.eventId = event.id;
     card.style.setProperty("--ttl-ms", `${CARD_TTL_MS}ms`);
 
-    const glyph = document.createElement("span");
-    glyph.className = "activity-glyph";
-    glyph.textContent = KIND_GLYPH.channel_bundle;
-
     const body = document.createElement("div");
     body.className = "activity-body";
 
     const titleRow = document.createElement("div");
-    titleRow.className = "activity-title";
-    titleRow.textContent = "Bundle";
+    titleRow.className = "activity-title activity-ops";
+    renderOps(titleRow, counts);
 
     const councilRow = document.createElement("div");
     councilRow.className = "activity-council";
@@ -329,19 +313,11 @@ export class ActivityFeed {
       }`;
     }
 
-    const opsRow = document.createElement("div");
-    opsRow.className = "activity-ops";
-    renderOps(opsRow, counts);
+    body.append(titleRow, councilRow, viaRow);
 
-    body.append(titleRow, councilRow, viaRow, opsRow);
-
-    const bar = document.createElement("div");
-    bar.className = "activity-opbar";
-    renderOpBar(bar, counts);
-
-    card.append(glyph, body, buildFooter(event), bar);
+    card.append(body, buildFooter(event));
     this.list.prepend(card);
-    this.groups.set(key, { card, counts, ops: opsRow, bar, via: viaRow });
+    this.groups.set(key, { card, counts, ops: titleRow, via: viaRow });
     this.trimAndExpire(card, event.id, key);
   }
 

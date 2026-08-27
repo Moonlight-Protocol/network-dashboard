@@ -382,30 +382,10 @@ main.container {
 }
 
 .activity-card.bundle-group {
-  position: relative;
-  padding-bottom: 0.6rem;
+  border-left-color: transparent;
 }
-.activity-opbar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  height: 4px;
-  border-radius: 0 0 6px 6px;
-  overflow: hidden;
-}
-.activity-opbar span {
-  min-width: 0;
-}
-.activity-opbar .op-deposit {
-  background: var(--op-deposit);
-}
-.activity-opbar .op-send {
-  background: var(--op-send);
-}
-.activity-opbar .op-withdraw {
-  background: var(--op-withdraw);
+.activity-card.bundle-group a {
+  color: var(--text-muted);
 }
 
 /* §3 — Council details ────────────────────────────────────────────── */
