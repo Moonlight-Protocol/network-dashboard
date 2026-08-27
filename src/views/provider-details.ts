@@ -77,9 +77,11 @@ export class ProviderDetails {
       return;
     }
 
-    const label = councils
+    const provider = councils
       .flatMap((c) => c.providers)
-      .find((p) => p.publicKey === pubKey)?.label?.trim() ?? "";
+      .find((p) => p.publicKey === pubKey);
+    const label = provider?.label?.trim() ?? "";
+    const providerUrl = provider?.providerUrl?.trim() ?? "";
 
     const bundleCount = this.recent.reduce((n, ev) => {
       if (ev.kind !== "channel_bundle") return n;
@@ -118,6 +120,26 @@ export class ProviderDetails {
     pk.textContent = pubKey;
     this.panel.appendChild(pk);
 
+    // Wallet connect URL — the string the browser-wallet extension's
+    // "add provider" form takes verbatim: the self-reported base URL with
+    // the PP's public key as the last path segment.
+    const wHeader = document.createElement("div");
+    wHeader.className = "provider-details-subheader";
+    wHeader.textContent = "Wallet connect URL";
+    this.panel.appendChild(wHeader);
+
+    if (providerUrl) {
+      const w = document.createElement("div");
+      w.className = "provider-details-pubkey";
+      w.textContent = `${providerUrl.replace(/\/+$/, "")}/${pubKey}`;
+      this.panel.appendChild(w);
+    } else {
+      const w = document.createElement("div");
+      w.className = "provider-details-hint";
+      w.textContent = "Not self-reported by this provider.";
+      this.panel.appendChild(w);
+    }
+
     const cHeader = document.createElement("div");
     cHeader.className = "provider-details-subheader";
     cHeader.textContent = "Member of";
@@ -127,6 +149,8 @@ export class ProviderDetails {
     list.className = "provider-details-council-list";
     for (const c of councils) {
       const li = document.createElement("li");
+      const row = document.createElement("div");
+      row.className = "provider-details-council-row";
       const name = document.createElement("span");
       name.className = "provider-details-council-name";
       name.textContent = c.name?.trim() || truncateAddress(c.id);
@@ -135,7 +159,23 @@ export class ProviderDetails {
       juris.textContent = c.jurisdictions.length > 0
         ? c.jurisdictions.map((j) => j.toUpperCase()).join(", ")
         : "—";
-      li.append(name, juris);
+      row.append(name, juris);
+      li.appendChild(row);
+
+      // Privacy channels — the wallet's "add channel" form needs the asset
+      // code and the full channel contract id, so show both untruncated.
+      for (const ch of c.channels) {
+        const chRow = document.createElement("div");
+        chRow.className = "provider-details-channel";
+        const asset = document.createElement("span");
+        asset.className = "provider-details-channel-asset";
+        asset.textContent = ch.assetCode || "?";
+        const contract = document.createElement("span");
+        contract.className = "provider-details-channel-contract";
+        contract.textContent = ch.contractId;
+        chRow.append(asset, contract);
+        li.appendChild(chRow);
+      }
       list.appendChild(li);
     }
     this.panel.appendChild(list);

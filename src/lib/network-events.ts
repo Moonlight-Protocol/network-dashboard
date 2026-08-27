@@ -36,7 +36,16 @@ export type NetworkEvent = {
 export type CouncilTopologyEntry = {
   id: string;
   name: string | null;
-  providers: Array<{ publicKey: string; label: string | null }>;
+  providers: Array<{
+    publicKey: string;
+    label: string | null;
+    /**
+     * Self-reported provider base URL, nullable and optional: backends
+     * predating the field send providers without it, and the card degrades
+     * (no connect URL) rather than reject.
+     */
+    providerUrl?: string | null;
+  }>;
   channels: Array<{
     contractId: string;
     assetCode: string;
